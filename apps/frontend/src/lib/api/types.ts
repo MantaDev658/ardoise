@@ -36,13 +36,20 @@ export interface AuditLog {
 	created_at: string;
 }
 
+export interface ExpenseSplit {
+	user_id: string;
+	amount_cents: number;
+}
+
 // Matches inline expenseItem struct in ListExpenses handler
 export interface ExpenseItem {
 	id: string;
+	group_id?: string;
 	description: string;
 	total_cents: number;
 	payer: string;
 	created_at: string;
+	splits: ExpenseSplit[];
 }
 
 // GET /balances response

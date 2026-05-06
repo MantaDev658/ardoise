@@ -113,7 +113,7 @@
 				<HRule />
 
 				<Button type="submit" variant="success" disabled={submitting} class="w-full py-2 text-base">
-					{submitting ? 'RECORDING…' : '💸 SETTLE UP'}
+					{submitting ? 'RECORDING…' : 'SETTLE UP'}
 				</Button>
 			</form>
 

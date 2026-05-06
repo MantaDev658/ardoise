@@ -52,22 +52,38 @@ func (h *APIHandler) ListExpenses(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	type splitItem struct {
+		UserID      string `json:"user_id"`
+		AmountCents int64  `json:"amount_cents"`
+	}
 	type expenseItem struct {
-		ID          string    `json:"id"`
-		Description string    `json:"description"`
-		Total       int64     `json:"total_cents"`
-		Payer       string    `json:"payer"`
-		CreatedAt   time.Time `json:"created_at"`
+		ID          string      `json:"id"`
+		GroupID     string      `json:"group_id,omitempty"`
+		Description string      `json:"description"`
+		Total       int64       `json:"total_cents"`
+		Payer       string      `json:"payer"`
+		CreatedAt   time.Time   `json:"created_at"`
+		Splits      []splitItem `json:"splits"`
 	}
 
 	items := make([]expenseItem, len(expenses))
 	for i, exp := range expenses {
+		splitItems := make([]splitItem, len(exp.Splits()))
+		for j, s := range exp.Splits() {
+			splitItems[j] = splitItem{UserID: string(s.User), AmountCents: s.Amount.Int64()}
+		}
+		groupIDStr := ""
+		if exp.GroupID() != nil {
+			groupIDStr = string(*exp.GroupID())
+		}
 		items[i] = expenseItem{
 			ID:          string(exp.ID()),
+			GroupID:     groupIDStr,
 			Description: exp.Description(),
 			Total:       exp.Total().Int64(),
 			Payer:       string(exp.Payer()),
 			CreatedAt:   exp.CreatedAt(),
+			Splits:      splitItems,
 		}
 	}
 
@@ -110,6 +126,9 @@ func (h *APIHandler) GetBalances(w http.ResponseWriter, r *http.Request) {
 
 	balances := domain.CalculateNetBalances(expenses)
 	suggestions := domain.SimplifyDebts(balances)
+	if suggestions == nil {
+		suggestions = []domain.Transaction{}
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]any{

@@ -61,8 +61,12 @@ test: test-unit test-race test-fuzz db-up migrate-up test-integration db-down
 dev: db-up migrate-up
 	@echo "API:      http://localhost:8080"
 	@echo "Frontend: http://localhost:5173"
-	@trap 'kill 0' INT; \
+	@echo "Press Ctrl+C to stop both servers."
+	@trap 'kill 0' INT TERM; \
 	go run ./apps/backend/cmd/api/main.go & \
+	printf "Waiting for API"; \
+	until nc -z 127.0.0.1 8080 2>/dev/null; do printf "."; sleep 0.3; done; \
+	echo " ready"; \
 	(cd apps/frontend && bun run dev) & \
 	wait
 

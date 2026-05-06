@@ -30,7 +30,8 @@
 				g.map(async (grp) => {
 					try {
 						const bal = await getBalances(grp.ID);
-						return [grp.ID, { settled: bal.suggested_settlements.length === 0, count: bal.suggested_settlements.length }] as const;
+						const count = bal.suggested_settlements?.length ?? 0;
+						return [grp.ID, { settled: count === 0, count }] as const;
 					} catch {
 						return [grp.ID, { settled: true, count: 0 }] as const;
 					}

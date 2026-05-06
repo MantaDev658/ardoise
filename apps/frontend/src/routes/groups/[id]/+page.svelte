@@ -1,17 +1,21 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { APIError } from '$lib/api/client';
 	import { deleteExpense, listExpenses } from '$lib/api/expenses';
 	import {
 		addGroupMember,
+		deleteGroup,
 		getGroupActivity,
 		listGroups,
-		removeGroupMember
+		removeGroupMember,
+		updateGroup
 	} from '$lib/api/groups';
 	import type { AuditLog, ExpenseItem, Group, User } from '$lib/api/types';
 	import { listUsers } from '$lib/api/users';
 	import Button from '$lib/components/Button.svelte';
 	import HRule from '$lib/components/HRule.svelte';
+	import Input from '$lib/components/Input.svelte';
 	import Select from '$lib/components/Select.svelte';
 	import Window from '$lib/components/Window.svelte';
 	import { toastStore } from '$lib/stores/toast';
@@ -36,6 +40,18 @@
 	let addMemberID = $state('');
 	let addingMember = $state(false);
 
+	// ── Rename ───────────────────────────────────────────────────────
+	let renamingGroup = $state(false);
+	let newGroupName = $state('');
+	let renaming = $state(false);
+
+	// ── Delete ───────────────────────────────────────────────────────
+	let deletingGroup = $state(false);
+
+	// ── Expense pagination ────────────────────────────────────────────
+	let expenseNextCursor = $state('');
+	let expenseCursorStack = $state<string[]>([]);
+
 	// ── Derived ──────────────────────────────────────────────────────
 	const userByID = $derived(Object.fromEntries(allUsers.map((u) => [u.ID, u])));
 
@@ -58,17 +74,35 @@
 	});
 
 	$effect(() => {
-		if (tab === 'expenses' && groupID) loadExpenses();
+		if (tab === 'expenses' && groupID) {
+			expenseCursorStack = [];
+			expenseNextCursor = '';
+			loadExpenses();
+		}
 		if (tab === 'activity' && groupID) loadActivity();
 	});
 
-	async function loadExpenses() {
+	async function loadExpenses(cursor = '') {
 		try {
-			const result = await listExpenses(groupID, undefined, 20);
+			const result = await listExpenses(groupID, cursor || undefined, 20);
 			expenses = result.data;
+			expenseNextCursor = result.next_cursor;
 		} catch {
 			toastStore.error('Failed to load expenses.');
 		}
+	}
+
+	function expenseNext() {
+		expenseCursorStack = [...expenseCursorStack, expenseNextCursor];
+		loadExpenses(expenseNextCursor);
+	}
+
+	function expensePrev() {
+		const stack = [...expenseCursorStack];
+		stack.pop();
+		const cursor = stack.at(-1) ?? '';
+		expenseCursorStack = stack;
+		loadExpenses(cursor);
 	}
 
 	async function loadActivity(cursor = '') {
@@ -110,12 +144,49 @@
 		}
 	}
 
+	// ── Rename group ──────────────────────────────────────────────────
+	function startRename() {
+		newGroupName = group?.Name ?? '';
+		renamingGroup = true;
+	}
+
+	async function handleRenameGroup() {
+		if (!newGroupName.trim() || renaming) return;
+		renaming = true;
+		try {
+			await updateGroup(groupID, newGroupName.trim());
+			toastStore.success('Group renamed.');
+			renamingGroup = false;
+			const groups = await listGroups();
+			group = groups.find((g) => g.ID === groupID) ?? null;
+		} catch (err) {
+			toastStore.error(err instanceof APIError ? err.message : 'Failed to rename group.');
+		} finally {
+			renaming = false;
+		}
+	}
+
+	// ── Delete group ──────────────────────────────────────────────────
+	async function handleDeleteGroup() {
+		if (!confirm(`Delete "${group?.Name}"? This cannot be undone.`)) return;
+		deletingGroup = true;
+		try {
+			await deleteGroup(groupID);
+			toastStore.success('Group deleted.');
+			goto('/groups');
+		} catch (err) {
+			deletingGroup = false;
+			toastStore.error(err instanceof APIError ? err.message : 'Failed to delete group.');
+		}
+	}
+
 	// ── Expenses ──────────────────────────────────────────────────────
 	async function handleDeleteExpense(id: string) {
 		if (!confirm('Delete this expense?')) return;
 		try {
 			await deleteExpense(id);
-			await loadExpenses();
+			const cursor = expenseCursorStack.at(-1) ?? '';
+			loadExpenses(cursor);
 		} catch (err) {
 			toastStore.error(err instanceof APIError ? err.message : 'Failed to delete expense.');
 		}
@@ -216,6 +287,28 @@
 						{addingMember ? '…' : '+ ADD'}
 					</Button>
 				</div>
+
+				<HRule class="mt-2" />
+
+				<!-- Rename group -->
+				{#if renamingGroup}
+					<div class="flex gap-2 items-center mt-1">
+						<Input bind:value={newGroupName} placeholder="New name…" class="flex-1" />
+						<Button variant="success" onclick={handleRenameGroup} disabled={!newGroupName.trim() || renaming}>
+							{renaming ? '…' : 'SAVE'}
+						</Button>
+						<Button onclick={() => (renamingGroup = false)}>CANCEL</Button>
+					</div>
+				{:else}
+					<Button onclick={startRename}>RENAME GROUP</Button>
+				{/if}
+
+				<!-- Delete group -->
+				<div class="mt-1">
+					<Button variant="danger" onclick={handleDeleteGroup} disabled={deletingGroup}>
+						{deletingGroup ? 'DELETING…' : 'DELETE GROUP'}
+					</Button>
+				</div>
 			</div>
 
 		<!-- Expenses tab -->
@@ -248,6 +341,10 @@
 							{/each}
 						</tbody>
 					</table>
+				</div>
+				<div class="flex gap-2 mt-3">
+					<Button onclick={expensePrev} disabled={!expenseCursorStack.length}>◀ PREV</Button>
+					<Button onclick={expenseNext} disabled={!expenseNextCursor}>NEXT ▶</Button>
 				</div>
 			{/if}
 

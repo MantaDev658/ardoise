@@ -17,10 +17,12 @@ export interface CreateExpenseInput {
 }
 
 export interface UpdateExpenseInput {
-	description?: string;
-	total_cents?: number;
-	split_type?: SplitType;
-	splits?: SplitInput[];
+	description: string;
+	total_cents: number;
+	payer: string;
+	split_type: SplitType;
+	splits: SplitInput[];
+	group_id?: string;
 }
 
 export function listExpenses(groupID?: string, cursor?: string, limit = 20) {

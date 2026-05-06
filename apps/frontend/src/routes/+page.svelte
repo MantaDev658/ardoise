@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { getBalances, listExpenses } from '$lib/api/expenses';
 	import { listGroups } from '$lib/api/groups';
 	import { listUsers } from '$lib/api/users';
@@ -14,47 +15,59 @@
 	let expenses = $state<ExpenseItem[]>([]);
 	let groupStatuses = $state<Record<string, { settled: boolean; count: number }>>({});
 	let loading = $state(true);
-	let error = $state('');
+	let unavailable = $state(false);
 
 	const userID = $derived($authStore.userID ?? '');
-	const userBalance = $derived(globalBalances?.net_balances[userID] ?? 0);
+	const userBalance = $derived(globalBalances?.net_balances?.[userID] ?? 0);
 	const owedToMe = $derived(Math.max(0, userBalance));
 	const iOwe = $derived(Math.max(0, -userBalance));
 	const userByID = $derived(Object.fromEntries(users.map((u) => [u.ID, u])));
 
-	$effect(() => {
-		async function load() {
-			try {
-				const [bal, grps, usrs, exp] = await Promise.all([
-					getBalances(),
-					listGroups(),
-					listUsers(),
-					listExpenses(undefined, undefined, 5)
-				]);
-				globalBalances = bal;
-				groups = grps;
-				users = usrs;
-				expenses = exp.data;
-
-				const entries = await Promise.all(
-					grps.map(async (g) => {
-						try {
-							const b = await getBalances(g.ID);
-							return [g.ID, { settled: b.suggested_settlements.length === 0, count: b.suggested_settlements.length }] as const;
-						} catch {
-							return [g.ID, { settled: true, count: 0 }] as const;
-						}
-					})
-				);
-				groupStatuses = Object.fromEntries(entries);
-			} catch {
-				error = 'Failed to load dashboard data.';
-			} finally {
-				loading = false;
-			}
-		}
-		load();
+	onMount(() => {
+		loadDashboard();
 	});
+
+	async function loadDashboard() {
+		loading = true;
+		unavailable = false;
+
+		try {
+			const [balResult, grpResult, usrResult, expResult] = await Promise.allSettled([
+				getBalances(),
+				listGroups(),
+				listUsers(),
+				listExpenses(undefined, undefined, 5)
+			]);
+
+			// If every call failed the backend is likely not running yet
+			if ([balResult, grpResult, usrResult, expResult].every((r) => r.status === 'rejected')) {
+				unavailable = true;
+				return;
+			}
+
+			globalBalances = balResult.status === 'fulfilled' ? balResult.value : null;
+			groups = grpResult.status === 'fulfilled' ? grpResult.value : [];
+			users = usrResult.status === 'fulfilled' ? usrResult.value : [];
+			expenses = expResult.status === 'fulfilled' ? (expResult.value?.data ?? []) : [];
+
+			// Per-group balance status — allSettled so a slow/failed group call never blocks loading
+			const statusResults = await Promise.allSettled(
+				groups.map((g) => getBalances(g.ID))
+			);
+			groupStatuses = Object.fromEntries(
+				groups.map((g, i) => {
+					const r = statusResults[i];
+					if (r?.status === 'fulfilled') {
+						const count = r.value.suggested_settlements?.length ?? 0;
+						return [g.ID, { settled: count === 0, count }];
+					}
+					return [g.ID, { settled: true, count: 0 }];
+				})
+			);
+		} finally {
+			loading = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -63,8 +76,17 @@
 
 {#if loading}
 	<p class="font-system text-white text-sm animate-pulse">Loading…</p>
-{:else if error}
-	<p class="font-system text-win-red text-sm">{error}</p>
+{:else if unavailable}
+	<div class="font-system text-sm flex flex-col gap-3 text-white">
+		<p class="font-bold">⚠ Could not reach the server.</p>
+		<p class="text-win-dark text-xs">Make sure the backend is running, then</p>
+		<button
+			class="text-xs underline text-win-accent text-left"
+			onclick={() => loadDashboard()}
+		>
+			retry →
+		</button>
+	</div>
 {:else}
 	{#if groups.length === 0 && expenses.length === 0}
 		<!-- Getting started — no data yet -->
@@ -132,7 +154,7 @@
 
 		<!-- Suggested settlements (global) -->
 		<Window title="SUGGESTED SETTLEMENTS">
-			{#if !globalBalances?.suggested_settlements.length}
+			{#if !globalBalances?.suggested_settlements?.length}
 				<p class="font-system text-sm text-win-dark">All settled up! ✓</p>
 			{:else}
 				<table class="w-full font-system text-sm">
