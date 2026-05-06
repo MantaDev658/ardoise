@@ -45,6 +45,7 @@ type MockExpenseRepo struct {
 	SaveFunc                    func(ctx context.Context, expense *domain.Expense) error
 	GetByIDFunc                 func(ctx context.Context, id domain.ExpenseID) (*domain.Expense, error)
 	ListAllFunc                 func(ctx context.Context, page domain.Page) ([]*domain.Expense, error)
+	ListForUserFunc             func(ctx context.Context, userID domain.UserID, page domain.Page) ([]*domain.Expense, error)
 	ListByGroupFunc             func(ctx context.Context, groupID domain.GroupID, page domain.Page) ([]*domain.Expense, error)
 	GetFriendBalanceSummaryFunc func(ctx context.Context, userID domain.UserID) ([]domain.FriendBalance, error)
 	UpdateFunc                  func(ctx context.Context, expense *domain.Expense) error
@@ -68,6 +69,13 @@ func (m *MockExpenseRepo) GetByID(ctx context.Context, id domain.ExpenseID) (*do
 func (m *MockExpenseRepo) ListAll(ctx context.Context, page domain.Page) ([]*domain.Expense, error) {
 	if m.ListAllFunc != nil {
 		return m.ListAllFunc(ctx, page)
+	}
+	return []*domain.Expense{}, nil
+}
+
+func (m *MockExpenseRepo) ListForUser(ctx context.Context, userID domain.UserID, page domain.Page) ([]*domain.Expense, error) {
+	if m.ListForUserFunc != nil {
+		return m.ListForUserFunc(ctx, userID, page)
 	}
 	return []*domain.Expense{}, nil
 }

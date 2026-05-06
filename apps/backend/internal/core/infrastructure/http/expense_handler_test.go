@@ -18,7 +18,7 @@ import (
 
 func TestAPIHandler_GetBalances(t *testing.T) {
 	aRepo := &mocks.MockAuditRepo{}
-	eRepo := &mocks.MockExpenseRepo{ListAllFunc: func(ctx context.Context, page domain.Page) ([]*domain.Expense, error) {
+	eRepo := &mocks.MockExpenseRepo{ListForUserFunc: func(ctx context.Context, userID domain.UserID, page domain.Page) ([]*domain.Expense, error) {
 		total, _ := money.New(3000)
 		split, _ := money.New(1500)
 		exp, _ := domain.NewExpense(
@@ -45,6 +45,7 @@ func TestAPIHandler_GetBalances(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	req = req.WithContext(context.WithValue(req.Context(), UserIDKey, "Alice"))
 
 	rr := httptest.NewRecorder()
 	handler.GetBalances(rr, req)
@@ -70,6 +71,7 @@ func TestAPIHandler_ExpensesGroupFiltering(t *testing.T) {
 
 	t.Run("GET /balances filters by group_id", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/balances?group_id=g1", nil)
+		req = req.WithContext(context.WithValue(req.Context(), UserIDKey, "Alice"))
 		rr := httptest.NewRecorder()
 
 		handler.GetBalances(rr, req)
@@ -83,7 +85,7 @@ func TestAPIHandler_ExpensesGroupFiltering(t *testing.T) {
 func TestAPIHandler_Expenses(t *testing.T) {
 	aRepo := &mocks.MockAuditRepo{}
 	eRepo := &mocks.MockExpenseRepo{
-		ListAllFunc: func(ctx context.Context, page domain.Page) ([]*domain.Expense, error) {
+		ListForUserFunc: func(ctx context.Context, userID domain.UserID, page domain.Page) ([]*domain.Expense, error) {
 			total, _ := money.New(3000)
 			split, _ := money.New(1500)
 			exp, _ := domain.NewExpense(
@@ -122,6 +124,7 @@ func TestAPIHandler_Expenses(t *testing.T) {
 
 	t.Run("GET /expenses returns list", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/expenses", nil)
+		req = req.WithContext(context.WithValue(req.Context(), UserIDKey, "Alice"))
 		rr := httptest.NewRecorder()
 
 		handler.ListExpenses(rr, req)

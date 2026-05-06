@@ -200,6 +200,32 @@ func (r *ExpenseRepository) ListAll(ctx context.Context, page domain.Page) ([]*d
 	return mapRowsToExpenses(rows)
 }
 
+func (r *ExpenseRepository) ListForUser(ctx context.Context, userID domain.UserID, page domain.Page) ([]*domain.Expense, error) {
+	args := []any{string(userID)}
+	query := `
+		SELECT e.id, e.group_id, e.description, e.total_cents, e.payer_id, e.created_at, s.user_id, s.amount_cents
+		FROM expenses e
+		JOIN splits s ON e.id = s.expense_id
+		WHERE (e.payer_id = $1 OR e.id IN (SELECT expense_id FROM splits WHERE user_id = $1))
+	`
+	if !page.Cursor.IsZero() {
+		args = append(args, page.Cursor)
+		query += fmt.Sprintf(" AND e.created_at > $%d", len(args))
+	}
+	query += " ORDER BY e.created_at ASC"
+	if page.Limit > 0 {
+		args = append(args, page.Limit)
+		query += fmt.Sprintf(" LIMIT $%d", len(args))
+	}
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list user expenses: %w", err)
+	}
+	defer rows.Close()
+	return mapRowsToExpenses(rows)
+}
+
 func (r *ExpenseRepository) ListByGroup(ctx context.Context, groupID domain.GroupID, page domain.Page) ([]*domain.Expense, error) {
 	args := []any{string(groupID)}
 	query := `

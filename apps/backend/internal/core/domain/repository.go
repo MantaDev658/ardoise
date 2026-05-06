@@ -84,6 +84,7 @@ type ExpenseRepository interface {
 	Save(ctx context.Context, expense *Expense) error
 	GetByID(ctx context.Context, id ExpenseID) (*Expense, error)
 	ListAll(ctx context.Context, page Page) ([]*Expense, error)
+	ListForUser(ctx context.Context, userID UserID, page Page) ([]*Expense, error)
 	ListByGroup(ctx context.Context, groupID GroupID, page Page) ([]*Expense, error)
 	GetFriendBalanceSummary(ctx context.Context, userID UserID) ([]FriendBalance, error)
 	Update(ctx context.Context, expense *Expense) error

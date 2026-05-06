@@ -151,6 +151,15 @@ func (s *ExpenseService) AddExpense(ctx context.Context, cmd CreateExpenseComman
 	})
 }
 
+// ListExpensesForUser returns expenses where the given user is the payer or a split participant.
+func (s *ExpenseService) ListExpensesForUser(ctx context.Context, userID string, page domain.Page) ([]*domain.Expense, error) {
+	expenses, err := s.expenseRepo.ListForUser(ctx, domain.UserID(userID), page)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch user expenses: %w", err)
+	}
+	return expenses, nil
+}
+
 // ListAllExpenses returns a paginated list of all expenses across all groups.
 func (s *ExpenseService) ListAllExpenses(ctx context.Context, page domain.Page) ([]*domain.Expense, error) {
 	expenses, err := s.expenseRepo.ListAll(ctx, page)

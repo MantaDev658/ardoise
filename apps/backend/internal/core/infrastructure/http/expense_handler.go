@@ -33,13 +33,18 @@ func (h *APIHandler) ListExpenses(w http.ResponseWriter, r *http.Request) {
 	page := parsePage(r)
 	groupID := r.URL.Query().Get("group_id")
 
+	userID, err := getAuthUserID(r)
+	if err != nil {
+		http.Error(w, `{"error": "unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+
 	var expenses []*domain.Expense
-	var err error
 
 	if groupID != "" {
 		expenses, err = h.expenseService.ListExpensesByGroup(r.Context(), groupID, page)
 	} else {
-		expenses, err = h.expenseService.ListAllExpenses(r.Context(), page)
+		expenses, err = h.expenseService.ListExpensesForUser(r.Context(), userID, page)
 	}
 
 	if err != nil {
@@ -84,13 +89,18 @@ func (h *APIHandler) ListExpenses(w http.ResponseWriter, r *http.Request) {
 func (h *APIHandler) GetBalances(w http.ResponseWriter, r *http.Request) {
 	groupID := r.URL.Query().Get("group_id")
 
+	userID, err := getAuthUserID(r)
+	if err != nil {
+		http.Error(w, `{"error": "unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+
 	var expenses []*domain.Expense
-	var err error
 
 	if groupID != "" {
 		expenses, err = h.expenseService.ListExpensesByGroup(r.Context(), groupID, domain.Page{})
 	} else {
-		expenses, err = h.expenseService.ListAllExpenses(r.Context(), domain.Page{})
+		expenses, err = h.expenseService.ListExpensesForUser(r.Context(), userID, domain.Page{})
 	}
 
 	if err != nil {
