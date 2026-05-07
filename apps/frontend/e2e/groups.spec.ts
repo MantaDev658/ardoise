@@ -149,7 +149,7 @@ test('add member via username search', async ({ page }) => {
 	await page.waitForURL(/\/groups\/.+/);
 
 	// Type the new member's username in the search input and add them
-	await page.fill('[placeholder="Search username…"]', newMember.id);
+	await page.fill('[placeholder="Enter username…"]', newMember.id);
 	await page.getByRole('button', { name: '+ ADD' }).click();
 
 	await expect(page.getByRole('alert').getByText('Member added.')).toBeVisible();
