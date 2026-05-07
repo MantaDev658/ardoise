@@ -139,7 +139,7 @@ api_alive() {
 }
 
 if api_alive; then
-    printf "${GRN}✓${NC}  ${DIM}existing${NC}\n"
+    printf "${GRN}✓${NC}  ${DIM}running${NC}\n"
 else
     api_start_ms=$(now_ms)
     si=0
