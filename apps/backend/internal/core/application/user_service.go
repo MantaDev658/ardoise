@@ -88,6 +88,34 @@ func (s *UserService) UpdateUser(ctx context.Context, id string, displayName str
 	return s.repo.Update(ctx, domain.UserID(id), displayName)
 }
 
+// ChangePassword verifies the current password then replaces it with a newly hashed one.
+// New password must be at least 8 characters and differ from the current one.
+func (s *UserService) ChangePassword(ctx context.Context, id, currentPlain, newPlain string) error {
+	if len(newPlain) < 8 {
+		return domain.ErrPasswordTooShort
+	}
+
+	user, err := s.repo.GetByID(ctx, domain.UserID(id))
+	if err != nil || !user.IsActive {
+		return domain.ErrUserNotFound
+	}
+
+	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(currentPlain)) != nil {
+		return domain.ErrInvalidCredentials
+	}
+
+	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(newPlain)) == nil {
+		return domain.ErrSamePassword
+	}
+
+	newHash, err := bcrypt.GenerateFromPassword([]byte(newPlain), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	return s.repo.UpdatePassword(ctx, domain.UserID(id), string(newHash))
+}
+
 // DeleteUser soft-deletes the account, preserving audit history.
 func (s *UserService) DeleteUser(ctx context.Context, id string) error {
 	return s.repo.SoftDelete(ctx, domain.UserID(id))

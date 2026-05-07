@@ -79,6 +79,18 @@ func (r *UserRepository) Update(ctx context.Context, id domain.UserID, newName s
 	return nil
 }
 
+func (r *UserRepository) UpdatePassword(ctx context.Context, id domain.UserID, newHash string) error {
+	res, err := r.db.ExecContext(ctx, "UPDATE users SET password_hash = $1 WHERE id = $2 AND is_active = TRUE", newHash, string(id))
+	if err != nil {
+		return fmt.Errorf("failed to update password: %w", err)
+	}
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected == 0 {
+		return domain.ErrUserNotFound
+	}
+	return nil
+}
+
 func (r *UserRepository) SoftDelete(ctx context.Context, id domain.UserID) error {
 	res, err := r.db.ExecContext(ctx, "UPDATE users SET is_active = FALSE WHERE id = $1", string(id))
 	if err != nil {

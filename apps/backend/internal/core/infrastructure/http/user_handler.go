@@ -95,3 +95,37 @@ func (h *APIHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 }
+
+// PUT /users/{id}/password
+func (h *APIHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	targetID := r.PathValue("id")
+
+	// Enforce self-only: the caller may only change their own password.
+	callerID, err := getAuthUserID(r)
+	if err != nil || callerID != targetID {
+		http.Error(w, domain.ErrUnauthorized.Error(), http.StatusForbidden)
+		return
+	}
+
+	cmd, err := decodeJSON[struct {
+		CurrentPassword string `json:"current_password"`
+		NewPassword     string `json:"new_password"`
+	}](w, r)
+	if err != nil {
+		return
+	}
+
+	if err := h.userService.ChangePassword(r.Context(), targetID, cmd.CurrentPassword, cmd.NewPassword); err != nil {
+		switch {
+		case errors.Is(err, domain.ErrInvalidCredentials):
+			// 400 not 401: caller is authenticated, this is a validation failure not session expiry
+			http.Error(w, "current password is incorrect", http.StatusBadRequest)
+		case errors.Is(err, domain.ErrPasswordTooShort), errors.Is(err, domain.ErrSamePassword):
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		default:
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}

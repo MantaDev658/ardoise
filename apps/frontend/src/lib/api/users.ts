@@ -17,6 +17,13 @@ export function deleteUser(id: string) {
 	return apiFetch<void>(`/users/${id}`, { method: 'DELETE' });
 }
 
+export function changePassword(id: string, currentPassword: string, newPassword: string) {
+	return apiFetch<void>(`/users/${id}/password`, {
+		method: 'PUT',
+		body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
+	});
+}
+
 export async function register(id: string, displayName: string, password: string) {
 	await apiFetch<void>('/auth/register', {
 		method: 'POST',

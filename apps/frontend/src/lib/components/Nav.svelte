@@ -34,7 +34,10 @@
 	{/each}
 
 	<div class="ml-auto flex items-center gap-3 shrink-0">
-		<span class="text-xs font-mono text-win-dark hidden sm:block">{$authStore.userID ?? ''}</span>
+		<a
+			href="/profile"
+			class="text-xs font-mono text-win-dark hidden sm:block hover:underline"
+		>{$authStore.userID ?? ''}</a>
 		<Button variant="danger" onclick={handleLogout}>LOGOUT</Button>
 	</div>
 </nav>

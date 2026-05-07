@@ -65,6 +65,66 @@ func TestAPIHandler_Users(t *testing.T) {
 	})
 }
 
+func TestAPIHandler_ChangePassword(t *testing.T) {
+	const currentPlain = "password123"
+	hash, _ := bcrypt.GenerateFromPassword([]byte(currentPlain), bcrypt.DefaultCost)
+
+	uRepo := &mocks.MockUserRepo{
+		GetByIDFunc: func(_ context.Context, _ domain.UserID) (*domain.User, error) {
+			return &domain.User{ID: "Alice", IsActive: true, PasswordHash: string(hash)}, nil
+		},
+	}
+	es, us, gs := newTestServices(&mocks.MockExpenseRepo{}, uRepo, &mocks.MockGroupRepo{}, &mocks.MockAuditRepo{})
+	handler := NewAPIHandler(es, us, gs)
+
+	makeReq := func(callerID, targetID, body string) (*httptest.ResponseRecorder, *http.Request) {
+		req := httptest.NewRequest("PUT", "/users/"+targetID+"/password", bytes.NewBufferString(body))
+		req.SetPathValue("id", targetID)
+		ctx := context.WithValue(req.Context(), UserIDKey, callerID)
+		return httptest.NewRecorder(), req.WithContext(ctx)
+	}
+
+	t.Run("returns 403 when caller is not the target", func(t *testing.T) {
+		rr, req := makeReq("Bob", "Alice", `{"current_password":"password123","new_password":"newpassword123"}`)
+		handler.ChangePassword(rr, req)
+		if rr.Code != http.StatusForbidden {
+			t.Errorf("expected 403, got %d", rr.Code)
+		}
+	})
+
+	t.Run("returns 400 when current password is wrong", func(t *testing.T) {
+		rr, req := makeReq("Alice", "Alice", `{"current_password":"wrong","new_password":"newpassword123"}`)
+		handler.ChangePassword(rr, req)
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("expected 400, got %d", rr.Code)
+		}
+	})
+
+	t.Run("returns 400 when new password is too short", func(t *testing.T) {
+		rr, req := makeReq("Alice", "Alice", `{"current_password":"password123","new_password":"short"}`)
+		handler.ChangePassword(rr, req)
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("expected 400, got %d", rr.Code)
+		}
+	})
+
+	t.Run("returns 400 when new password equals current", func(t *testing.T) {
+		rr, req := makeReq("Alice", "Alice", `{"current_password":"password123","new_password":"password123"}`)
+		handler.ChangePassword(rr, req)
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("expected 400, got %d", rr.Code)
+		}
+	})
+
+	t.Run("returns 200 on success", func(t *testing.T) {
+		rr, req := makeReq("Alice", "Alice", `{"current_password":"password123","new_password":"newpassword123"}`)
+		handler.ChangePassword(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+		}
+	})
+}
+
 func TestAPIHandler_Auth(t *testing.T) {
 	uRepo := &mocks.MockUserRepo{
 		SaveFunc: func(ctx context.Context, user domain.User) error { return nil },

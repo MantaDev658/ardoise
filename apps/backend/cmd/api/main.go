@@ -81,6 +81,7 @@ func main() {
 
 	protected.HandleFunc("GET /users", h.ListUsers)
 	protected.HandleFunc("PUT /users/{id}", h.UpdateUser)
+	protected.HandleFunc("PUT /users/{id}/password", h.ChangePassword)
 	protected.HandleFunc("DELETE /users/{id}", h.DeleteUser)
 
 	protected.HandleFunc("POST /groups", h.CreateGroup)

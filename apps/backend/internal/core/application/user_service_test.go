@@ -136,3 +136,60 @@ func TestUserService_DeleteUser(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 	}
 }
+
+func TestUserService_ChangePassword(t *testing.T) {
+	const currentPlain = "correct-current"
+	hash, _ := bcrypt.GenerateFromPassword([]byte(currentPlain), bcrypt.DefaultCost)
+
+	makeRepo := func() *mocks.MockUserRepo {
+		return &mocks.MockUserRepo{
+			GetByIDFunc: func(_ context.Context, _ domain.UserID) (*domain.User, error) {
+				return &domain.User{ID: "Alice", IsActive: true, PasswordHash: string(hash)}, nil
+			},
+		}
+	}
+
+	service := NewUserService(makeRepo(), []byte("test-secret"))
+
+	t.Run("rejects password shorter than 8 chars", func(t *testing.T) {
+		err := service.ChangePassword(context.Background(), "Alice", currentPlain, "short")
+		if !errors.Is(err, domain.ErrPasswordTooShort) {
+			t.Errorf("expected ErrPasswordTooShort, got %v", err)
+		}
+	})
+
+	t.Run("rejects wrong current password", func(t *testing.T) {
+		err := service.ChangePassword(context.Background(), "Alice", "wrong-password", "newpassword123")
+		if !errors.Is(err, domain.ErrInvalidCredentials) {
+			t.Errorf("expected ErrInvalidCredentials, got %v", err)
+		}
+	})
+
+	t.Run("rejects same password as current", func(t *testing.T) {
+		err := service.ChangePassword(context.Background(), "Alice", currentPlain, currentPlain)
+		if !errors.Is(err, domain.ErrSamePassword) {
+			t.Errorf("expected ErrSamePassword, got %v", err)
+		}
+	})
+
+	t.Run("stores a new bcrypt hash on success", func(t *testing.T) {
+		var storedHash string
+		repo := makeRepo()
+		repo.UpdatePasswordFunc = func(_ context.Context, _ domain.UserID, h string) error {
+			storedHash = h
+			return nil
+		}
+		svc := NewUserService(repo, []byte("test-secret"))
+
+		err := svc.ChangePassword(context.Background(), "Alice", currentPlain, "newpassword123")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if storedHash == "" || storedHash == "newpassword123" {
+			t.Error("expected a hashed value, got plain text or empty")
+		}
+		if bcrypt.CompareHashAndPassword([]byte(storedHash), []byte("newpassword123")) != nil {
+			t.Error("stored hash does not match the new password")
+		}
+	})
+}

@@ -26,6 +26,30 @@ func TestUserRepository_DuplicateUsername(t *testing.T) {
 	}
 }
 
+func TestUserRepository_UpdatePassword(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repo := NewUserRepository(db)
+	ctx := context.Background()
+
+	if err := repo.Save(ctx, domain.User{ID: "pw-user", DisplayName: "PW User", PasswordHash: "oldhash"}); err != nil {
+		t.Fatalf("failed to save: %v", err)
+	}
+
+	if err := repo.UpdatePassword(ctx, "pw-user", "newhash"); err != nil {
+		t.Fatalf("failed to update password: %v", err)
+	}
+
+	user, err := repo.GetByID(ctx, "pw-user")
+	if err != nil {
+		t.Fatalf("failed to get user: %v", err)
+	}
+	if user.PasswordHash != "newhash" {
+		t.Errorf("expected 'newhash', got %q", user.PasswordHash)
+	}
+}
+
 func TestUserRepository_Lifecycle(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()

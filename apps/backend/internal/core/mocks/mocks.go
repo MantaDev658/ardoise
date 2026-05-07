@@ -111,11 +111,12 @@ func (m *MockExpenseRepo) Delete(ctx context.Context, id domain.ExpenseID) error
 // User
 
 type MockUserRepo struct {
-	SaveFunc       func(ctx context.Context, user domain.User) error
-	GetByIDFunc    func(ctx context.Context, id domain.UserID) (*domain.User, error)
-	ListAllFunc    func(ctx context.Context) ([]domain.User, error)
-	UpdateFunc     func(ctx context.Context, user domain.UserID, displayName string) error
-	SoftDeleteFunc func(ctx context.Context, user domain.UserID) error
+	SaveFunc           func(ctx context.Context, user domain.User) error
+	GetByIDFunc        func(ctx context.Context, id domain.UserID) (*domain.User, error)
+	ListAllFunc        func(ctx context.Context) ([]domain.User, error)
+	UpdateFunc         func(ctx context.Context, user domain.UserID, displayName string) error
+	UpdatePasswordFunc func(ctx context.Context, user domain.UserID, newHash string) error
+	SoftDeleteFunc     func(ctx context.Context, user domain.UserID) error
 }
 
 func (m *MockUserRepo) Save(ctx context.Context, user domain.User) error {
@@ -142,6 +143,13 @@ func (m *MockUserRepo) ListAll(ctx context.Context) ([]domain.User, error) {
 func (m *MockUserRepo) Update(ctx context.Context, user domain.UserID, displayName string) error {
 	if m.UpdateFunc != nil {
 		return m.UpdateFunc(ctx, user, displayName)
+	}
+	return nil
+}
+
+func (m *MockUserRepo) UpdatePassword(ctx context.Context, user domain.UserID, newHash string) error {
+	if m.UpdatePasswordFunc != nil {
+		return m.UpdatePasswordFunc(ctx, user, newHash)
 	}
 	return nil
 }
