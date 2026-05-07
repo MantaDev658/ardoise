@@ -33,6 +33,7 @@ var (
 // --- User Errors ---
 var (
 	ErrUserNotFound       = errors.New("user not found or inactive")
+	ErrUserAlreadyExists  = errors.New("username already taken")
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrEmptyDisplayName   = errors.New("display name cannot be empty")
 	ErrUnauthorized       = errors.New("unauthorized: missing or invalid identity")

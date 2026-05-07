@@ -22,6 +22,22 @@ test('login with valid credentials redirects to dashboard', async ({ page }) => 
 	await expect(page.getByText('OPEN SPLIT', { exact: true })).toBeVisible();
 });
 
+test('registering a duplicate username shows an error', async ({ page }) => {
+	const user = uniqueUser();
+	await register(page, user);
+	await page.evaluate(() => localStorage.clear());
+
+	// Try to register the same username again
+	await page.goto('/register');
+	await page.fill('#reg-id', user.id);
+	await page.fill('#reg-display-name', 'Someone Else');
+	await page.fill('#reg-password', 'otherpass123');
+	await page.getByRole('button', { name: 'REGISTER' }).click();
+
+	await expect(page.getByText(/username already taken/i)).toBeVisible();
+	await expect(page).toHaveURL('/register');
+});
+
 test('login with bad credentials shows error', async ({ page }) => {
 	await page.goto('/login');
 	await page.fill('#login-id', 'no-such-user');

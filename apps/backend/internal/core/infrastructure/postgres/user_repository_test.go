@@ -2,10 +2,29 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"opensplit/apps/backend/internal/core/domain"
 )
+
+func TestUserRepository_DuplicateUsername(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repo := NewUserRepository(db)
+	ctx := context.Background()
+
+	user := domain.User{ID: "duplicate-user", DisplayName: "First"}
+	if err := repo.Save(ctx, user); err != nil {
+		t.Fatalf("first save failed: %v", err)
+	}
+
+	err := repo.Save(ctx, domain.User{ID: "duplicate-user", DisplayName: "Second"})
+	if !errors.Is(err, domain.ErrUserAlreadyExists) {
+		t.Errorf("expected ErrUserAlreadyExists, got %v", err)
+	}
+}
 
 func TestUserRepository_Lifecycle(t *testing.T) {
 	db := setupTestDB(t)

@@ -76,6 +76,29 @@ func TestAPIHandler_Auth(t *testing.T) {
 	es, us, gs := newTestServices(&mocks.MockExpenseRepo{}, uRepo, &mocks.MockGroupRepo{}, &mocks.MockAuditRepo{})
 	handler := NewAPIHandler(es, us, gs)
 
+	t.Run("POST /auth/register returns 409 on duplicate username", func(t *testing.T) {
+		dupRepo := &mocks.MockUserRepo{
+			SaveFunc: func(ctx context.Context, user domain.User) error {
+				return domain.ErrUserAlreadyExists
+			},
+		}
+		_, dupUS, _ := newTestServices(&mocks.MockExpenseRepo{}, dupRepo, &mocks.MockGroupRepo{}, &mocks.MockAuditRepo{})
+		dupHandler := NewAPIHandler(es, dupUS, gs)
+
+		body := []byte(`{"id": "Alice", "display_name": "Alice", "password": "password123"}`)
+		req := httptest.NewRequest("POST", "/auth/register", bytes.NewBuffer(body))
+		rr := httptest.NewRecorder()
+
+		dupHandler.RegisterUser(rr, req)
+
+		if rr.Code != http.StatusConflict {
+			t.Errorf("expected 409, got %d", rr.Code)
+		}
+		if !bytes.Contains(rr.Body.Bytes(), []byte("username already taken")) {
+			t.Errorf("expected error message in body, got %s", rr.Body.String())
+		}
+	})
+
 	t.Run("POST /auth/register creates user", func(t *testing.T) {
 		body := []byte(`{"id": "Alice", "display_name": "Alice", "password": "password123"}`)
 		req := httptest.NewRequest("POST", "/auth/register", bytes.NewBuffer(body))

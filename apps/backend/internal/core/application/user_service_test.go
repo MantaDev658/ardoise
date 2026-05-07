@@ -12,6 +12,20 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+func TestUserService_RegisterUser_DuplicateUsername(t *testing.T) {
+	repo := &mocks.MockUserRepo{
+		SaveFunc: func(ctx context.Context, user domain.User) error {
+			return domain.ErrUserAlreadyExists
+		},
+	}
+	service := NewUserService(repo, []byte("test-secret"))
+
+	err := service.RegisterUser(context.Background(), "alice", "Alice", "password")
+	if !errors.Is(err, domain.ErrUserAlreadyExists) {
+		t.Errorf("expected ErrUserAlreadyExists, got %v", err)
+	}
+}
+
 func TestUserService_Auth(t *testing.T) {
 	secret := []byte("test-secret")
 

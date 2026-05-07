@@ -2,7 +2,10 @@ package http
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+
+	"opensplit/apps/backend/internal/core/domain"
 )
 
 // POST /auth/register
@@ -17,6 +20,12 @@ func (h *APIHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.userService.RegisterUser(r.Context(), cmd.ID, cmd.DisplayName, cmd.Password); err != nil {
+		if errors.Is(err, domain.ErrUserAlreadyExists) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			return
+		}
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}

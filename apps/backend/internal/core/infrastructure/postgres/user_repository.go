@@ -20,13 +20,17 @@ func (r *UserRepository) Save(ctx context.Context, user domain.User) error {
 	query := `
 		INSERT INTO users (id, display_name, password_hash)
 		VALUES ($1, $2, $3)
-		ON CONFLICT (id) DO UPDATE 
-		SET display_name = EXCLUDED.display_name, 
-		    password_hash = EXCLUDED.password_hash,
-		    is_active = TRUE
+		ON CONFLICT (id) DO NOTHING
 	`
-	_, err := r.db.ExecContext(ctx, query, string(user.ID), user.DisplayName, user.PasswordHash)
-	return err
+	res, err := r.db.ExecContext(ctx, query, string(user.ID), user.DisplayName, user.PasswordHash)
+	if err != nil {
+		return err
+	}
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return domain.ErrUserAlreadyExists
+	}
+	return nil
 }
 
 func (r *UserRepository) GetByID(ctx context.Context, id domain.UserID) (*domain.User, error) {
