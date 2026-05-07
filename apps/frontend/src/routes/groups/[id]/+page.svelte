@@ -19,6 +19,7 @@
 	import Input from '$lib/components/Input.svelte';
 	import Select from '$lib/components/Select.svelte';
 	import Window from '$lib/components/Window.svelte';
+	import { authStore } from '$lib/stores/auth';
 	import { toastStore } from '$lib/stores/toast';
 	import { formatCents, formatDate } from '$lib/utils';
 
@@ -48,6 +49,9 @@
 
 	// ── Delete ───────────────────────────────────────────────────────
 	let deletingGroup = $state(false);
+
+	// ── Leave ────────────────────────────────────────────────────────
+	let leavingGroup = $state(false);
 
 	// ── Expense pagination ────────────────────────────────────────────
 	let expenseNextCursor = $state('');
@@ -177,6 +181,20 @@
 		}
 	}
 
+	// ── Leave group ───────────────────────────────────────────────────
+	async function handleLeaveGroup() {
+		if (!confirm(`Leave "${group?.Name}"?`)) return;
+		leavingGroup = true;
+		try {
+			await removeGroupMember(groupID, $authStore.userID!);
+			toastStore.success('You have left the group.');
+			goto('/groups');
+		} catch (err) {
+			leavingGroup = false;
+			toastStore.error(err instanceof APIError ? err.message : 'Failed to leave group.');
+		}
+	}
+
 	// ── Delete group ──────────────────────────────────────────────────
 	async function handleDeleteGroup() {
 		if (!confirm(`Delete "${group?.Name}"? This cannot be undone.`)) return;
@@ -281,7 +299,9 @@
 						       {i % 2 === 0 ? 'bg-win-panel' : 'bg-white'}"
 					>
 						<span>{userByID[memberID]?.DisplayName ?? memberID}</span>
-						<Button variant="danger" onclick={() => handleRemoveMember(memberID)}>REMOVE</Button>
+						{#if memberID !== $authStore.userID}
+							<Button variant="danger" onclick={() => handleRemoveMember(memberID)}>REMOVE</Button>
+						{/if}
 					</div>
 				{/each}
 
@@ -313,6 +333,13 @@
 				{:else}
 					<Button onclick={startRename}>RENAME GROUP</Button>
 				{/if}
+
+				<!-- Leave group -->
+				<div class="mt-1">
+					<Button variant="danger" onclick={handleLeaveGroup} disabled={leavingGroup}>
+						{leavingGroup ? 'LEAVING…' : 'LEAVE GROUP'}
+					</Button>
+				</div>
 
 				<!-- Delete group -->
 				<div class="mt-1">

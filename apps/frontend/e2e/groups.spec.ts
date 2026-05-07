@@ -1,5 +1,13 @@
 import { test, expect } from '@playwright/test';
-import { uniqueUser, register } from './helpers';
+import {
+	uniqueUser,
+	register,
+	registerViaApi,
+	loginViaApi,
+	createGroupViaApi,
+	addGroupMemberViaApi,
+	createGroupExpenseViaApi,
+} from './helpers';
 
 test('empty groups page shows no groups message', async ({ page }) => {
 	const user = uniqueUser();
@@ -67,4 +75,59 @@ test('delete group redirects to /groups and removes it from list', async ({ page
 	await page.waitForURL('/groups');
 	await expect(page).toHaveURL('/groups');
 	await expect(page.getByText('To Be Deleted')).not.toBeVisible();
+});
+
+test('leave group redirects to /groups', async ({ page }) => {
+	const user = uniqueUser();
+	await register(page, user);
+	await page.goto('/groups');
+	await expect(page.getByText('No groups yet. Create one above.')).toBeVisible({ timeout: 15_000 });
+
+	// Create a group
+	await page.getByRole('button', { name: '+ CREATE GROUP' }).click();
+	await page.fill('[placeholder="Group name…"]', 'Group To Leave');
+	await page.getByRole('button', { name: 'CREATE' }).click();
+	await expect(page.getByText('Group To Leave')).toBeVisible();
+
+	// Open group detail
+	await page.getByText('Group To Leave').first().click();
+	await page.waitForURL(/\/groups\/.+/);
+
+	// REMOVE button should not be visible for the current user
+	// (they are the only member, so no REMOVE buttons at all)
+	await expect(page.getByRole('button', { name: 'REMOVE' })).not.toBeVisible();
+
+	// Leave the group
+	page.once('dialog', (dialog) => dialog.accept());
+	await page.getByRole('button', { name: 'LEAVE GROUP' }).click();
+
+	await page.waitForURL('/groups');
+	await expect(page).toHaveURL('/groups');
+});
+
+test('leave group with outstanding balance shows error', async ({ page }) => {
+	const user = uniqueUser();
+	const friend = uniqueUser();
+
+	// Set up via API: register both users, create group, add member, create expense
+	await registerViaApi(friend);
+	await register(page, user); // registers + logs in as user
+	const token = await loginViaApi(user);
+	const groupID = await createGroupViaApi(token, 'Balance Group');
+	await addGroupMemberViaApi(token, groupID, friend.id);
+	// User pays $20 split equally with friend — user has +$10 outstanding balance
+	await createGroupExpenseViaApi(token, groupID, [user.id, friend.id], 2000);
+
+	// Navigate to the group detail page
+	await page.goto(`/groups/${groupID}`);
+	await page.waitForURL(/\/groups\/.+/);
+	await expect(page.getByRole('button', { name: 'LEAVE GROUP' })).toBeVisible({ timeout: 10_000 });
+
+	// Try to leave — backend blocks due to outstanding balance
+	page.once('dialog', (dialog) => dialog.accept());
+	await page.getByRole('button', { name: 'LEAVE GROUP' }).click();
+
+	// Should show error toast and stay on the group page
+	await expect(page.getByText(/outstanding/i)).toBeVisible({ timeout: 5_000 });
+	await expect(page).toHaveURL(/\/groups\/.+/);
 });

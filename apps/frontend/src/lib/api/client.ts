@@ -39,11 +39,16 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 	if (!res.ok) {
 		let message = res.statusText;
 		try {
-			const body = await res.json();
-			if (typeof body.error === 'string') message = body.error;
-		} catch {
-			// non-JSON error body — use statusText
-		}
+			const rawText = await res.text();
+			if (rawText.trim()) {
+				try {
+					const body = JSON.parse(rawText);
+					if (typeof body.error === 'string') message = body.error;
+				} catch {
+					message = rawText.trim();
+				}
+			}
+		} catch { /* keep statusText */ }
 		throw new APIError(res.status, message);
 	}
 

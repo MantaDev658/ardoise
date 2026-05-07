@@ -48,3 +48,62 @@ export async function registerViaApi(user: TestUser): Promise<void> {
 	});
 	if (!res.ok) throw new Error(`registerViaApi failed: ${res.status} ${await res.text()}`);
 }
+
+export async function loginViaApi(user: TestUser): Promise<string> {
+	const res = await fetch('http://localhost:8080/auth/login', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ id: user.id, password: user.password }),
+	});
+	if (!res.ok) throw new Error(`loginViaApi failed: ${res.status} ${await res.text()}`);
+	const data = await res.json() as { token: string };
+	return data.token;
+}
+
+export async function createGroupExpenseViaApi(
+	token: string,
+	groupID: string,
+	participantIDs: string[],
+	totalCents: number,
+): Promise<void> {
+	const splits = participantIDs.map((id) => ({ user_id: id, value: totalCents / participantIDs.length }));
+	const res = await fetch('http://localhost:8080/expenses', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+		body: JSON.stringify({
+			group_id: groupID,
+			description: 'Test expense',
+			total_cents: totalCents,
+			split_type: 'EQUAL',
+			splits,
+		}),
+	});
+	if (!res.ok) throw new Error(`createGroupExpenseViaApi failed: ${res.status} ${await res.text()}`);
+}
+
+export async function createGroupViaApi(
+	token: string,
+	name: string,
+): Promise<string> {
+	const res = await fetch('http://localhost:8080/groups', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+		body: JSON.stringify({ name }),
+	});
+	if (!res.ok) throw new Error(`createGroupViaApi failed: ${res.status} ${await res.text()}`);
+	const data = await res.json() as { group_id: string };
+	return data.group_id;
+}
+
+export async function addGroupMemberViaApi(
+	token: string,
+	groupID: string,
+	userID: string,
+): Promise<void> {
+	const res = await fetch(`http://localhost:8080/groups/${groupID}/members`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+		body: JSON.stringify({ user_id: userID }),
+	});
+	if (!res.ok) throw new Error(`addGroupMemberViaApi failed: ${res.status} ${await res.text()}`);
+}
