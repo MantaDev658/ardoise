@@ -67,6 +67,7 @@ type UserRepository interface {
 	Save(ctx context.Context, user User) error
 	GetByID(ctx context.Context, id UserID) (*User, error)
 	ListAll(ctx context.Context) ([]User, error)
+	ListCoMembers(ctx context.Context, userID UserID) ([]User, error)
 	Update(ctx context.Context, userID UserID, displayName string) error
 	UpdatePassword(ctx context.Context, userID UserID, newHash string) error
 	SoftDelete(ctx context.Context, userId UserID) error

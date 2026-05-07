@@ -6,6 +6,10 @@ export function listUsers() {
 	return apiFetch<User[]>('/users');
 }
 
+export function listFriends() {
+	return apiFetch<User[]>('/friends');
+}
+
 export function updateUser(id: string, displayName: string) {
 	return apiFetch<void>(`/users/${id}`, {
 		method: 'PUT',

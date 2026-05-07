@@ -125,6 +125,38 @@ func TestAPIHandler_ChangePassword(t *testing.T) {
 	})
 }
 
+func TestAPIHandler_ListFriends(t *testing.T) {
+	uRepo := &mocks.MockUserRepo{
+		ListCoMembersFunc: func(ctx context.Context, userID domain.UserID) ([]domain.User, error) {
+			return []domain.User{{ID: "Bob", DisplayName: "Bob"}}, nil
+		},
+	}
+	es, us, gs := newTestServices(&mocks.MockExpenseRepo{}, uRepo, &mocks.MockGroupRepo{}, &mocks.MockAuditRepo{})
+	handler := NewAPIHandler(es, us, gs)
+
+	t.Run("returns 401 when not authenticated", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/friends", nil)
+		rr := httptest.NewRecorder()
+		handler.ListFriends(rr, req)
+		if rr.Code != http.StatusUnauthorized {
+			t.Errorf("expected 401, got %d", rr.Code)
+		}
+	})
+
+	t.Run("returns friends for authenticated user", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/friends", nil)
+		ctx := context.WithValue(req.Context(), UserIDKey, "Alice")
+		rr := httptest.NewRecorder()
+		handler.ListFriends(rr, req.WithContext(ctx))
+		if rr.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", rr.Code)
+		}
+		if !bytes.Contains(rr.Body.Bytes(), []byte("Bob")) {
+			t.Errorf("expected body to contain Bob, got %s", rr.Body.String())
+		}
+	})
+}
+
 func TestAPIHandler_Auth(t *testing.T) {
 	uRepo := &mocks.MockUserRepo{
 		SaveFunc: func(ctx context.Context, user domain.User) error { return nil },

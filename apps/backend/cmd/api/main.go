@@ -79,6 +79,7 @@ func main() {
 	protected.HandleFunc("DELETE /expenses/{id}", h.DeleteExpense)
 	protected.HandleFunc("POST /settlements", h.CreateSettlement)
 
+	protected.HandleFunc("GET /friends", h.ListFriends)
 	protected.HandleFunc("GET /users", h.ListUsers)
 	protected.HandleFunc("PUT /users/{id}", h.UpdateUser)
 	protected.HandleFunc("PUT /users/{id}/password", h.ChangePassword)

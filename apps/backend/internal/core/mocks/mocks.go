@@ -114,6 +114,7 @@ type MockUserRepo struct {
 	SaveFunc           func(ctx context.Context, user domain.User) error
 	GetByIDFunc        func(ctx context.Context, id domain.UserID) (*domain.User, error)
 	ListAllFunc        func(ctx context.Context) ([]domain.User, error)
+	ListCoMembersFunc  func(ctx context.Context, userID domain.UserID) ([]domain.User, error)
 	UpdateFunc         func(ctx context.Context, user domain.UserID, displayName string) error
 	UpdatePasswordFunc func(ctx context.Context, user domain.UserID, newHash string) error
 	SoftDeleteFunc     func(ctx context.Context, user domain.UserID) error
@@ -152,6 +153,13 @@ func (m *MockUserRepo) UpdatePassword(ctx context.Context, user domain.UserID, n
 		return m.UpdatePasswordFunc(ctx, user, newHash)
 	}
 	return nil
+}
+
+func (m *MockUserRepo) ListCoMembers(ctx context.Context, userID domain.UserID) ([]domain.User, error) {
+	if m.ListCoMembersFunc != nil {
+		return m.ListCoMembersFunc(ctx, userID)
+	}
+	return nil, nil
 }
 
 func (m *MockUserRepo) SoftDelete(ctx context.Context, user domain.UserID) error {

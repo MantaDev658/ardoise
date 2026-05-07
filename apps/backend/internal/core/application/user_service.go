@@ -116,6 +116,11 @@ func (s *UserService) ChangePassword(ctx context.Context, id, currentPlain, newP
 	return s.repo.UpdatePassword(ctx, domain.UserID(id), string(newHash))
 }
 
+// ListFriends returns all active users who share at least one group with the given user.
+func (s *UserService) ListFriends(ctx context.Context, userID string) ([]domain.User, error) {
+	return s.repo.ListCoMembers(ctx, domain.UserID(userID))
+}
+
 // DeleteUser soft-deletes the account, preserving audit history.
 func (s *UserService) DeleteUser(ctx context.Context, id string) error {
 	return s.repo.SoftDelete(ctx, domain.UserID(id))

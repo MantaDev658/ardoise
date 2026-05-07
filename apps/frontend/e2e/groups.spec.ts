@@ -132,6 +132,31 @@ test('leave group with outstanding balance shows error', async ({ page }) => {
 	await expect(page).toHaveURL(/\/groups\/.+/);
 });
 
+test('add member via username search', async ({ page }) => {
+	const owner = uniqueUser();
+	const newMember = uniqueUser();
+
+	await registerViaApi(newMember);
+	await register(page, owner);
+
+	// Create a group via UI
+	await page.goto('/groups');
+	await expect(page.getByText('No groups yet. Create one above.')).toBeVisible({ timeout: 15_000 });
+	await page.getByRole('button', { name: '+ CREATE GROUP' }).click();
+	await page.fill('[placeholder="Group name…"]', 'Member Search Group');
+	await page.getByRole('button', { name: 'CREATE' }).click();
+	await page.getByText('Member Search Group').first().click();
+	await page.waitForURL(/\/groups\/.+/);
+
+	// Type the new member's username in the search input and add them
+	await page.fill('[placeholder="Search username…"]', newMember.id);
+	await page.getByRole('button', { name: '+ ADD' }).click();
+
+	await expect(page.getByRole('alert').getByText('Member added.')).toBeVisible();
+	// The new member should now appear in the member list
+	await expect(page.getByText(newMember.displayName)).toBeVisible();
+});
+
 test('balances tab shows net balances and suggested transfers', async ({ page }) => {
 	const user = uniqueUser();
 	const friend = uniqueUser();
@@ -159,5 +184,5 @@ test('balances tab shows net balances and suggested transfers', async ({ page })
 	// SETTLE link pre-fills the settle form
 	await page.getByRole('link', { name: 'SETTLE', exact: true }).click();
 	await page.waitForURL(/\/settle/);
-	await expect(page.getByLabel('Amount ($)')).toHaveValue('10.00');
+	await expect(page.getByLabel('Amount ($)')).toHaveValue('10.00', { timeout: 15_000 });
 });

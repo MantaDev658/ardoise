@@ -17,7 +17,6 @@
 	import Button from '$lib/components/Button.svelte';
 	import HRule from '$lib/components/HRule.svelte';
 	import Input from '$lib/components/Input.svelte';
-	import Select from '$lib/components/Select.svelte';
 	import Window from '$lib/components/Window.svelte';
 	import { authStore } from '$lib/stores/auth';
 	import { toastStore } from '$lib/stores/toast';
@@ -39,7 +38,7 @@
 	// ── UI ───────────────────────────────────────────────────────────
 	let loading = $state(true);
 	let tab = $state<Tab>('members');
-	let addMemberID = $state('');
+	let addMemberSearch = $state('');
 	let addingMember = $state(false);
 
 	// ── Rename ───────────────────────────────────────────────────────
@@ -59,11 +58,6 @@
 
 	// ── Derived ──────────────────────────────────────────────────────
 	const userByID = $derived(Object.fromEntries((allUsers ?? []).map((u) => [u.ID, u])));
-
-	const nonMembers = $derived(
-		(allUsers ?? []).filter((u) => !group?.Members.includes(u.ID))
-			.map((u) => ({ value: u.ID, label: u.DisplayName }))
-	);
 
 	// ── Load ─────────────────────────────────────────────────────────
 	let mounted = true;
@@ -133,12 +127,13 @@
 
 	// ── Members ───────────────────────────────────────────────────────
 	async function handleAddMember() {
-		if (!addMemberID || addingMember) return;
+		const trimmed = addMemberSearch.trim();
+		if (!trimmed || addingMember) return;
 		addingMember = true;
 		try {
-			await addGroupMember(groupID, addMemberID);
+			await addGroupMember(groupID, trimmed);
 			toastStore.success('Member added.');
-			addMemberID = '';
+			addMemberSearch = '';
 			const groups = await listGroups();
 			group = groups.find((g) => g.ID === groupID) ?? null;
 		} catch (err) {
@@ -320,13 +315,12 @@
 				<HRule />
 
 				<div class="flex gap-2 mt-1">
-					<Select
-						bind:value={addMemberID}
-						placeholder="Add member…"
-						options={nonMembers}
+					<Input
+						bind:value={addMemberSearch}
+						placeholder="Enter username…"
 						class="flex-1"
 					/>
-					<Button variant="success" onclick={handleAddMember} disabled={!addMemberID || addingMember}>
+					<Button variant="success" onclick={handleAddMember} disabled={!addMemberSearch.trim() || addingMember}>
 						{addingMember ? '…' : '+ ADD'}
 					</Button>
 				</div>

@@ -54,6 +54,26 @@ func (h *APIHandler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GET /friends — returns users who share at least one group with the authenticated caller.
+func (h *APIHandler) ListFriends(w http.ResponseWriter, r *http.Request) {
+	callerID, err := getAuthUserID(r)
+	if err != nil {
+		http.Error(w, domain.ErrUnauthorized.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	friends, err := h.userService.ListFriends(r.Context(), callerID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(friends); err != nil {
+		return
+	}
+}
+
 // GET /users
 func (h *APIHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := h.userService.ListUsers(r.Context())

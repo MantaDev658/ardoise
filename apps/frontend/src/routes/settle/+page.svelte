@@ -5,7 +5,7 @@
 	import { listGroups } from '$lib/api/groups';
 	import { createSettlement } from '$lib/api/settlements';
 	import type { Group, User } from '$lib/api/types';
-	import { listUsers } from '$lib/api/users';
+	import { listFriends } from '$lib/api/users';
 	import Button from '$lib/components/Button.svelte';
 	import HRule from '$lib/components/HRule.svelte';
 	import Input from '$lib/components/Input.svelte';
@@ -39,15 +39,15 @@
 		const amountParam = params.get('amount');
 		const groupParam = params.get('group');
 
-		Promise.all([listUsers(), listGroups()])
+		Promise.all([listFriends(), listGroups()])
 			.then(([usrs, grps]) => {
-				users = usrs;
-				groups = grps;
+				users = usrs ?? [];
+				groups = grps ?? [];
 				if (toParam) receiverID = toParam;
 				if (amountParam) amountDollars = (parseInt(amountParam, 10) / 100).toFixed(2);
 				if (groupParam) groupID = groupParam;
 			})
-			.catch(() => toastStore.error('Failed to load users and groups.'))
+			.catch(() => toastStore.error('Failed to load friends and groups.'))
 			.finally(() => (loading = false));
 	});
 
@@ -84,6 +84,11 @@
 
 <div class="max-w-sm">
 	<Window title="SETTLE UP">
+		{#if !loading && users.length === 0}
+			<p class="font-system text-xs text-center py-2">
+				You have no friends yet — join a group first.
+			</p>
+		{:else}
 		<form class="flex flex-col gap-3 font-system" onsubmit={handleSubmit}>
 			<div class="flex flex-col gap-1">
 				<label class="text-xs font-bold" for="settle-receiver">Send payment to</label>
@@ -126,6 +131,7 @@
 				{submitting ? 'RECORDING…' : 'SETTLE UP'}
 			</Button>
 		</form>
+		{/if}
 
 		<!-- Warning stripe -->
 		<div class="bg-construction h-5 mt-4" aria-hidden="true"></div>

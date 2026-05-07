@@ -79,6 +79,36 @@ func (r *UserRepository) Update(ctx context.Context, id domain.UserID, newName s
 	return nil
 }
 
+// ListCoMembers returns all active users who share at least one group with userID.
+// Uses idx_group_members_user_id + idx_group_members_group_id — no sequential scans.
+func (r *UserRepository) ListCoMembers(ctx context.Context, userID domain.UserID) ([]domain.User, error) {
+	query := `
+		SELECT DISTINCT u.id, u.display_name
+		FROM users u
+		JOIN group_members gm_them ON gm_them.user_id = u.id
+		JOIN group_members gm_me   ON gm_me.group_id = gm_them.group_id
+		                          AND gm_me.user_id  = $1
+		WHERE u.id != $1
+		  AND u.is_active = TRUE
+		ORDER BY u.display_name ASC
+	`
+	rows, err := r.db.QueryContext(ctx, query, string(userID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to list co-members: %w", err)
+	}
+	defer rows.Close()
+
+	users := make([]domain.User, 0)
+	for rows.Next() {
+		var u domain.User
+		if err := rows.Scan(&u.ID, &u.DisplayName); err != nil {
+			return nil, fmt.Errorf("failed to scan co-member: %w", err)
+		}
+		users = append(users, u)
+	}
+	return users, rows.Err()
+}
+
 func (r *UserRepository) UpdatePassword(ctx context.Context, id domain.UserID, newHash string) error {
 	res, err := r.db.ExecContext(ctx, "UPDATE users SET password_hash = $1 WHERE id = $2 AND is_active = TRUE", newHash, string(id))
 	if err != nil {
