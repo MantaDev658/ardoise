@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { APIError } from '$lib/api/client';
-	import { deleteExpense, listExpenses } from '$lib/api/expenses';
+	import { deleteExpense, getBalances, listExpenses } from '$lib/api/expenses';
 	import {
 		addGroupMember,
 		deleteGroup,
@@ -12,7 +12,7 @@
 		removeGroupMember,
 		updateGroup
 	} from '$lib/api/groups';
-	import type { AuditLog, ExpenseItem, Group, User } from '$lib/api/types';
+	import type { AuditLog, BalancesResponse, ExpenseItem, Group, User } from '$lib/api/types';
 	import { listUsers } from '$lib/api/users';
 	import Button from '$lib/components/Button.svelte';
 	import HRule from '$lib/components/HRule.svelte';
@@ -23,7 +23,7 @@
 	import { toastStore } from '$lib/stores/toast';
 	import { formatCents, formatDate } from '$lib/utils';
 
-	type Tab = 'members' | 'expenses' | 'activity';
+	type Tab = 'members' | 'expenses' | 'activity' | 'balances';
 
 	// ── Route ────────────────────────────────────────────────────────
 	const groupID = $derived($page.params.id ?? '');
@@ -95,6 +95,7 @@
 			loadExpenses();
 		}
 		if (tab === 'activity' && groupID) loadActivity();
+		if (tab === 'balances' && groupID) loadBalances();
 	});
 
 	async function loadExpenses(cursor = '') {
@@ -251,6 +252,17 @@
 		}
 	}
 
+	// ── Balances ──────────────────────────────────────────────────────
+	let balances = $state<BalancesResponse | null>(null);
+
+	async function loadBalances() {
+		try {
+			balances = await getBalances(groupID);
+		} catch {
+			toastStore.error('Failed to load balances.');
+		}
+	}
+
 	// ── Activity pagination ───────────────────────────────────────────
 	function activityNext() {
 		activityCursorStack = [...activityCursorStack, activityCursor];
@@ -278,7 +290,7 @@
 	<Window title={group.Name}>
 		<!-- Tab bar -->
 		<div class="flex gap-0 -mx-4 -mt-4 mb-4 overflow-x-auto">
-			{#each (['members', 'expenses', 'activity'] as Tab[]) as t}
+			{#each (['members', 'balances', 'expenses', 'activity'] as Tab[]) as t}
 				<button
 					class="px-4 py-1.5 text-xs font-bold uppercase font-system shrink-0
 					       {tab === t ? 'bg-win95 text-black' : 'bg-win-dark text-white hover:bg-win95 hover:text-black'}"
@@ -321,7 +333,7 @@
 
 				<HRule class="mt-2" />
 
-				<!-- Rename group -->
+				<!-- Group actions -->
 				{#if renamingGroup}
 					<div class="flex gap-2 items-center mt-1">
 						<Input bind:value={newGroupName} placeholder="New name…" class="flex-1" />
@@ -331,22 +343,16 @@
 						<Button onclick={() => (renamingGroup = false)}>CANCEL</Button>
 					</div>
 				{:else}
-					<Button onclick={startRename}>RENAME GROUP</Button>
+					<div class="flex gap-2 mt-1">
+						<Button class="flex-1" onclick={startRename}>RENAME</Button>
+						<Button class="flex-1" variant="danger" onclick={handleLeaveGroup} disabled={leavingGroup}>
+							{leavingGroup ? 'LEAVING…' : 'LEAVE'}
+						</Button>
+						<Button class="flex-1" variant="danger" onclick={handleDeleteGroup} disabled={deletingGroup}>
+							{deletingGroup ? 'DELETING…' : 'DELETE'}
+						</Button>
+					</div>
 				{/if}
-
-				<!-- Leave group -->
-				<div class="mt-1">
-					<Button variant="danger" onclick={handleLeaveGroup} disabled={leavingGroup}>
-						{leavingGroup ? 'LEAVING…' : 'LEAVE GROUP'}
-					</Button>
-				</div>
-
-				<!-- Delete group -->
-				<div class="mt-1">
-					<Button variant="danger" onclick={handleDeleteGroup} disabled={deletingGroup}>
-						{deletingGroup ? 'DELETING…' : 'DELETE GROUP'}
-					</Button>
-				</div>
 			</div>
 
 		<!-- Expenses tab -->
@@ -403,6 +409,58 @@
 					<Button onclick={activityPrev} disabled={!activityCursorStack.length}>◀ PREV</Button>
 					<Button onclick={activityNext} disabled={!activityCursor}>NEXT ▶</Button>
 				</div>
+			{/if}
+
+		<!-- Balances tab -->
+		{:else if tab === 'balances'}
+			{#if !balances}
+				<p class="font-system text-sm animate-pulse">Loading…</p>
+			{:else}
+				<!-- Net balances -->
+				<p class="font-system text-xs font-bold uppercase mb-1">Net Balances</p>
+				{#if Object.keys(balances.net_balances).length === 0}
+					<p class="font-system text-sm text-win-dark">No balances — group is settled up.</p>
+				{:else}
+					<table class="w-full font-system text-sm mb-4">
+						<tbody>
+							{#each Object.entries(balances.net_balances) as [uid, cents], i}
+								<tr class={i % 2 === 0 ? 'bg-win-panel' : 'bg-white'}>
+									<td class="px-2 py-1">{userByID[uid]?.DisplayName ?? uid}</td>
+									<td class="px-2 py-1 text-right font-mono font-bold
+										{cents > 0 ? 'text-green-700' : cents < 0 ? 'text-red-700' : 'text-win-dark'}">
+										{cents > 0 ? '+' : ''}{formatCents(cents)}
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				{/if}
+
+				<!-- Suggested transfers -->
+				<p class="font-system text-xs font-bold uppercase mb-1">Suggested Transfers</p>
+				{#if !balances.suggested_settlements?.length}
+					<p class="font-system text-sm text-win-dark">Nothing to settle — everyone is even.</p>
+				{:else}
+					<div class="flex flex-col gap-1">
+						{#each balances.suggested_settlements as s, i}
+							<div class="flex items-center justify-between px-2 py-1
+								{i % 2 === 0 ? 'bg-win-panel' : 'bg-white'}">
+								<span class="font-system text-sm">
+									{userByID[s.From]?.DisplayName ?? s.From}
+									→
+									{userByID[s.To]?.DisplayName ?? s.To}
+									<span class="font-mono font-bold ml-2">{formatCents(s.Amount)}</span>
+								</span>
+								<a
+									href="/settle?to={s.To}&amount={s.Amount}&group={groupID}"
+									class="inline-block"
+								>
+									<Button variant="success">SETTLE</Button>
+								</a>
+							</div>
+						{/each}
+					</div>
+				{/if}
 			{/if}
 		{/if}
 	</Window>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 	import { APIError } from '$lib/api/client';
 	import { listGroups } from '$lib/api/groups';
 	import { createSettlement } from '$lib/api/settlements';
@@ -33,10 +34,18 @@
 	);
 
 	onMount(() => {
+		const params = $page.url.searchParams;
+		const toParam = params.get('to');
+		const amountParam = params.get('amount');
+		const groupParam = params.get('group');
+
 		Promise.all([listUsers(), listGroups()])
 			.then(([usrs, grps]) => {
 				users = usrs;
 				groups = grps;
+				if (toParam) receiverID = toParam;
+				if (amountParam) amountDollars = (parseInt(amountParam, 10) / 100).toFixed(2);
+				if (groupParam) groupID = groupParam;
 			})
 			.catch(() => toastStore.error('Failed to load users and groups.'))
 			.finally(() => (loading = false));

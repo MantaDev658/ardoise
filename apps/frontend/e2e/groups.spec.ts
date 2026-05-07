@@ -44,7 +44,7 @@ test('rename group updates the name', async ({ page }) => {
 	await page.waitForURL(/\/groups\/.+/);
 
 	// Rename
-	await page.getByRole('button', { name: 'RENAME GROUP' }).click();
+	await page.getByRole('button', { name: 'RENAME' }).click();
 	await page.fill('[placeholder="New name…"]', 'Renamed Group');
 	await page.getByRole('button', { name: 'SAVE' }).click();
 
@@ -70,7 +70,7 @@ test('delete group redirects to /groups and removes it from list', async ({ page
 
 	// Accept the confirm dialog and delete
 	page.once('dialog', (dialog) => dialog.accept());
-	await page.getByRole('button', { name: 'DELETE GROUP' }).click();
+	await page.getByRole('button', { name: 'DELETE' }).click();
 
 	await page.waitForURL('/groups');
 	await expect(page).toHaveURL('/groups');
@@ -99,7 +99,7 @@ test('leave group redirects to /groups', async ({ page }) => {
 
 	// Leave the group
 	page.once('dialog', (dialog) => dialog.accept());
-	await page.getByRole('button', { name: 'LEAVE GROUP' }).click();
+	await page.getByRole('button', { name: 'LEAVE' }).click();
 
 	await page.waitForURL('/groups');
 	await expect(page).toHaveURL('/groups');
@@ -121,13 +121,43 @@ test('leave group with outstanding balance shows error', async ({ page }) => {
 	// Navigate to the group detail page
 	await page.goto(`/groups/${groupID}`);
 	await page.waitForURL(/\/groups\/.+/);
-	await expect(page.getByRole('button', { name: 'LEAVE GROUP' })).toBeVisible({ timeout: 10_000 });
+	await expect(page.getByRole('button', { name: 'LEAVE' })).toBeVisible({ timeout: 10_000 });
 
 	// Try to leave — backend blocks due to outstanding balance
 	page.once('dialog', (dialog) => dialog.accept());
-	await page.getByRole('button', { name: 'LEAVE GROUP' }).click();
+	await page.getByRole('button', { name: 'LEAVE' }).click();
 
 	// Should show error toast and stay on the group page
 	await expect(page.getByText(/outstanding/i)).toBeVisible({ timeout: 5_000 });
 	await expect(page).toHaveURL(/\/groups\/.+/);
+});
+
+test('balances tab shows net balances and suggested transfers', async ({ page }) => {
+	const user = uniqueUser();
+	const friend = uniqueUser();
+	await registerViaApi(friend);
+	await register(page, user);
+	const token = await loginViaApi(user);
+	const groupID = await createGroupViaApi(token, 'Balance Tab Group');
+	await addGroupMemberViaApi(token, groupID, friend.id);
+	// User pays $20, split equally — friend owes user $10
+	await createGroupExpenseViaApi(token, groupID, [user.id, friend.id], 2000);
+
+	await page.goto(`/groups/${groupID}`);
+	await page.waitForURL(/\/groups\/.+/);
+
+	// Open the Balances tab
+	await page.getByRole('button', { name: 'balances' }).click();
+
+	// Net balances section should be visible
+	await expect(page.getByText('Net Balances')).toBeVisible({ timeout: 10_000 });
+
+	// Suggested transfers section and SETTLE button should appear
+	await expect(page.getByText('Suggested Transfers')).toBeVisible();
+	await expect(page.getByRole('link', { name: 'SETTLE', exact: true })).toBeVisible();
+
+	// SETTLE link pre-fills the settle form
+	await page.getByRole('link', { name: 'SETTLE', exact: true }).click();
+	await page.waitForURL(/\/settle/);
+	await expect(page.getByLabel('Amount ($)')).toHaveValue('10.00');
 });
