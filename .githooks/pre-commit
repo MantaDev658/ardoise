@@ -12,7 +12,6 @@ DIM=$'\033[2m'; NC=$'\033[0m'
 # ── State ─────────────────────────────────────────────────────────────
 STEP=0; TOTAL=8
 STARTED_DB=false; API_PID=""
-HOOK_START=$SECONDS
 LOG=$(mktemp); API_LOG=$(mktemp)
 
 cleanup() {
@@ -26,6 +25,29 @@ trap cleanup EXIT INT TERM
 
 cd "$(git rev-parse --show-toplevel)"
 
+# ── Millisecond timer (bash 3.2 compatible) ───────────────────────────
+# Prefer bash 5+ EPOCHREALTIME; fall back to python3.
+now_ms() {
+    local rt="${EPOCHREALTIME:-}"
+    if [[ -n "$rt" ]]; then
+        local r="${rt//./}"; printf '%s' "${r:0:13}"
+    else
+        python3 -c 'import time; print(int(time.time()*1000))'
+    fi
+}
+
+# "123ms"  "1.2s"  "12s"  "1m 2s"
+fmt_dur() {
+    local ms=$1
+    if   (( ms < 1000  )); then printf '%dms'      "$ms"
+    elif (( ms < 10000 )); then printf '%d.%ds'    "$(( ms/1000 ))" "$(( (ms%1000)/100 ))"
+    elif (( ms < 60000 )); then printf '%ds'       "$(( ms/1000 ))"
+    else local s=$(( ms/1000 )); printf '%dm %ds'  "$(( s/60 ))" "$(( s%60 ))"
+    fi
+}
+
+HOOK_START_MS=$(now_ms)
+
 # ── Header ────────────────────────────────────────────────────────────
 printf "\n${YLW}  Open Split — pre-commit${NC}\n"
 printf "${DIM}  ─────────────────────────────────────────${NC}\n\n"
@@ -34,8 +56,7 @@ printf "${DIM}  ─────────────────────�
 SPIN=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
 
 show_fail() {
-    echo
-    printf "${DIM}  ── output ─────────────────────────────────${NC}\n"
+    printf "\n${DIM}  ── output ─────────────────────────────────${NC}\n"
     sed 's/^/    /' "${1:-$LOG}" | tail -30
     printf "${DIM}  ───────────────────────────────────────────${NC}\n\n"
     exit 1
@@ -45,7 +66,8 @@ show_fail() {
 run_step() {
     local label="$1"; shift
     (( STEP++ )) || true
-    local start=$SECONDS si=0
+    local start_ms; start_ms=$(now_ms)
+    local si=0
 
     "$@" >"$LOG" 2>&1 &
     local pid=$!
@@ -56,12 +78,14 @@ run_step() {
         (( si++ )) || true
     done
     local rc=0; wait "$pid" || rc=$?
+    local dur; dur=$(fmt_dur "$(( $(now_ms) - start_ms ))")
 
     if [ "$rc" -eq 0 ]; then
-        printf "\r  ${DIM}%d/%d${NC}  %-34s${GRN}✓${NC}  ${DIM}%ds${NC}\n" \
-               "$STEP" "$TOTAL" "$label" "$(( SECONDS - start ))"
+        printf "\r  ${DIM}%d/%d${NC}  %-34s${GRN}✓${NC}  ${DIM}%s${NC}\n" \
+               "$STEP" "$TOTAL" "$label" "$dur"
     else
-        printf "\r  ${DIM}%d/%d${NC}  %-34s${RED}✗${NC}\n" "$STEP" "$TOTAL" "$label"
+        printf "\r  ${DIM}%d/%d${NC}  %-34s${RED}✗${NC}  ${DIM}%s${NC}\n" \
+               "$STEP" "$TOTAL" "$label" "$dur"
         show_fail
     fi
 }
@@ -107,7 +131,7 @@ run_step "Integration tests"  make test-integration --no-print-directory
 
 printf "       %-34s" "Backend API"
 
-# HTTP health check (not just TCP) to confirm an existing process is alive.
+# HTTP health check (not just TCP) to confirm an existing process is actually serving.
 api_alive() {
     nc -z 127.0.0.1 8080 2>/dev/null && \
     curl -s --connect-timeout 1 --max-time 2 \
@@ -117,7 +141,8 @@ api_alive() {
 if api_alive; then
     printf "${GRN}✓${NC}  ${DIM}existing${NC}\n"
 else
-    start=$SECONDS si=0
+    api_start_ms=$(now_ms)
+    si=0
     DATABASE_URL="postgresql://postgres:password@localhost:5432/opensplit?sslmode=disable" \
     JWT_SECRET="pre-commit-hook-secret" \
     ./bin/opensplit-api >"$API_LOG" 2>&1 &
@@ -130,8 +155,8 @@ else
         fi
         sleep 0.1; (( si++ )) || true
     done
-    printf "\r       %-34s${GRN}✓${NC}  ${DIM}%ds${NC}\n" \
-           "Backend API" "$(( SECONDS - start ))"
+    printf "\r       %-34s${GRN}✓${NC}  ${DIM}%s${NC}\n" \
+           "Backend API" "$(fmt_dur "$(( $(now_ms) - api_start_ms ))")"
 fi
 
 # Playwright browser (idempotent — skips download if already installed)
@@ -149,5 +174,5 @@ run_step "E2E tests (Playwright)"  make frontend-e2e --no-print-directory
 
 # ═══════════════════════════════════════════════════════════════════════
 
-printf "\n  ${GRN}✅  All checks passed${NC}  ${DIM}(%ds)${NC}\n\n" \
-       "$(( SECONDS - HOOK_START ))"
+printf "\n  ${GRN}✅  All checks passed${NC}  ${DIM}(%s)${NC}\n\n" \
+       "$(fmt_dur "$(( $(now_ms) - HOOK_START_MS ))")"
