@@ -214,6 +214,55 @@ func TestExpenseService_AddExpense_AuditIsAtomic(t *testing.T) {
 	})
 }
 
+func TestExpenseService_AddExpense_GroupLock(t *testing.T) {
+	t.Run("acquires group lock for group expenses", func(t *testing.T) {
+		lockCalled := false
+		gRepo := &mocks.MockGroupRepo{
+			GetByIDFunc: func(_ context.Context, id domain.GroupID) (*domain.Group, error) {
+				return &domain.Group{ID: id, Members: []domain.UserID{"Alice"}}, nil
+			},
+			LockGroupFunc: func(_ context.Context, _ domain.GroupID) error {
+				lockCalled = true
+				return nil
+			},
+		}
+		service := newTestExpenseService(&mocks.MockExpenseRepo{}, gRepo, &mocks.MockAuditRepo{})
+		cmd := CreateExpenseCommand{
+			GroupID: "g1", TotalCents: 3000, Payer: "Alice", SplitType: "EXACT",
+			Splits: []SplitDetail{{UserID: "Alice", Value: 3000}},
+		}
+
+		if err := service.AddExpense(context.Background(), cmd); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !lockCalled {
+			t.Error("expected LockGroup to be called for a group expense")
+		}
+	})
+
+	t.Run("does not acquire group lock for non-group expenses", func(t *testing.T) {
+		lockCalled := false
+		gRepo := &mocks.MockGroupRepo{
+			LockGroupFunc: func(_ context.Context, _ domain.GroupID) error {
+				lockCalled = true
+				return nil
+			},
+		}
+		service := newTestExpenseService(&mocks.MockExpenseRepo{}, gRepo, &mocks.MockAuditRepo{})
+		cmd := CreateExpenseCommand{
+			TotalCents: 3000, Payer: "Alice", SplitType: "EXACT",
+			Splits: []SplitDetail{{UserID: "Alice", Value: 3000}},
+		}
+
+		if err := service.AddExpense(context.Background(), cmd); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if lockCalled {
+			t.Error("expected LockGroup NOT to be called for a non-group expense")
+		}
+	})
+}
+
 func TestExpenseService_UpdateExpense(t *testing.T) {
 	makeOldExpense := func(groupID string) *domain.Expense {
 		total, _ := money.New(3000)

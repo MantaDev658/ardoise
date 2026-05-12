@@ -168,6 +168,7 @@ type MockGroupRepo struct {
 	UpdateNameFunc   func(ctx context.Context, id domain.GroupID, name string) error
 	DeleteFunc       func(ctx context.Context, id domain.GroupID) error
 	RemoveMemberFunc func(ctx context.Context, id domain.GroupID, userID domain.UserID) error
+	LockGroupFunc    func(ctx context.Context, id domain.GroupID) error
 }
 
 func (m *MockGroupRepo) Save(ctx context.Context, group *domain.Group) error {
@@ -208,6 +209,13 @@ func (m *MockGroupRepo) Delete(ctx context.Context, id domain.GroupID) error {
 func (m *MockGroupRepo) RemoveMember(ctx context.Context, id domain.GroupID, user domain.UserID) error {
 	if m.RemoveMemberFunc != nil {
 		return m.RemoveMemberFunc(ctx, id, user)
+	}
+	return nil
+}
+
+func (m *MockGroupRepo) LockGroup(ctx context.Context, id domain.GroupID) error {
+	if m.LockGroupFunc != nil {
+		return m.LockGroupFunc(ctx, id)
 	}
 	return nil
 }

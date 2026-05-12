@@ -128,23 +128,29 @@ func (s *GroupService) DeleteGroup(ctx context.Context, groupID string, userID s
 }
 
 // RemoveMember removes userID from the group, returning ErrOutstandingBalance if they still owe or are owed money.
+// The balance check and the deletion run inside a single transaction behind a row-level lock on the group,
+// preventing a concurrent AddExpense from inserting a debt between the check and the removal.
 func (s *GroupService) RemoveMember(ctx context.Context, groupID string, userID string, actorID string) error {
 	gID := domain.GroupID(groupID)
 	uID := domain.UserID(userID)
 
-	expenses, err := s.expenseRepo.ListByGroup(ctx, gID, domain.Page{})
-	if err != nil {
-		return fmt.Errorf("failed to fetch group expenses for validation: %w", err)
-	}
-
-	pairwise := domain.CalculatePairwiseBalance(expenses, uID)
-	for _, balance := range pairwise {
-		if balance != 0 {
-			return fmt.Errorf("%w with one or more members", domain.ErrOutstandingBalance)
-		}
-	}
-
 	return s.transactor.RunInTx(ctx, func(txCtx context.Context) error {
+		if err := s.groupRepo.LockGroup(txCtx, gID); err != nil {
+			return err
+		}
+
+		expenses, err := s.expenseRepo.ListByGroup(txCtx, gID, domain.Page{})
+		if err != nil {
+			return fmt.Errorf("failed to fetch group expenses for validation: %w", err)
+		}
+
+		pairwise := domain.CalculatePairwiseBalance(expenses, uID)
+		for _, balance := range pairwise {
+			if balance != 0 {
+				return fmt.Errorf("%w with one or more members", domain.ErrOutstandingBalance)
+			}
+		}
+
 		if err := s.groupRepo.RemoveMember(txCtx, gID, uID); err != nil {
 			return fmt.Errorf("failed to remove group member: %w", err)
 		}

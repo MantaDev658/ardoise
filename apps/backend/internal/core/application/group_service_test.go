@@ -147,6 +147,24 @@ func TestGroupService_RemoveMember_SavesAuditLog(t *testing.T) {
 	}
 }
 
+func TestGroupService_RemoveMember_AcquiresGroupLock(t *testing.T) {
+	lockCalled := false
+	gRepo := &mocks.MockGroupRepo{
+		LockGroupFunc: func(_ context.Context, id domain.GroupID) error {
+			lockCalled = true
+			return nil
+		},
+	}
+	service := newTestGroupService(gRepo, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{})
+
+	if err := service.RemoveMember(context.Background(), "g1", "Bob", "Alice"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !lockCalled {
+		t.Error("expected LockGroup to be called before balance check and deletion")
+	}
+}
+
 func TestGroupService_RemoveMember_BalanceValidation(t *testing.T) {
 	aRepo := &mocks.MockAuditRepo{}
 	gRepo := &mocks.MockGroupRepo{}

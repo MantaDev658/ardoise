@@ -152,6 +152,17 @@ func (r *GroupRepository) Delete(ctx context.Context, id domain.GroupID) error {
 	return nil
 }
 
+// LockGroup acquires a PostgreSQL row-level exclusive lock on the group for the duration of the
+// calling transaction. Must be called inside a RunInTx block.
+func (r *GroupRepository) LockGroup(ctx context.Context, groupID domain.GroupID) error {
+	var id string
+	err := execer(ctx, r.db).QueryRowContext(ctx, "SELECT id FROM groups WHERE id = $1 FOR UPDATE", string(groupID)).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return domain.ErrGroupNotFound
+	}
+	return err
+}
+
 func (r *GroupRepository) RemoveMember(ctx context.Context, groupID domain.GroupID, userID domain.UserID) error {
 	res, err := execer(ctx, r.db).ExecContext(ctx, "DELETE FROM group_members WHERE group_id = $1 AND user_id = $2", string(groupID), string(userID))
 	if err != nil {

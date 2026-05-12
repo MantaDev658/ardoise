@@ -122,6 +122,12 @@ func (s *ExpenseService) AddExpense(ctx context.Context, cmd CreateExpenseComman
 	}
 
 	return s.transactor.RunInTx(ctx, func(txCtx context.Context) error {
+		if cmd.GroupID != "" {
+			if err := s.groupRepo.LockGroup(txCtx, domain.GroupID(cmd.GroupID)); err != nil {
+				return err
+			}
+		}
+
 		if err := s.expenseRepo.Save(txCtx, expense); err != nil {
 			return fmt.Errorf("infrastructure failure: %w", err)
 		}

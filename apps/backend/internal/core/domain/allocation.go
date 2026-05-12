@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"math"
+
 	"opensplit/libs/shared/money"
 )
 
@@ -59,7 +61,7 @@ func Allocate(strategy AllocationType, totalCents int64, participants []Allocati
 			case AllocationTypeShares:
 				s = int64(p.Value)
 			case AllocationTypePercentage:
-				s = int64(p.Value * 100)
+				s = int64(math.Round(p.Value * 100))
 			}
 
 			totalShares += s

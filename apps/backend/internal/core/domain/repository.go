@@ -83,6 +83,7 @@ type GroupRepository interface {
 	UpdateName(ctx context.Context, id GroupID, name string) error
 	Delete(ctx context.Context, id GroupID) error
 	RemoveMember(ctx context.Context, id GroupID, userID UserID) error
+	LockGroup(ctx context.Context, id GroupID) error
 }
 
 type ExpenseRepository interface {

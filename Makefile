@@ -27,7 +27,7 @@ lint:
 		cd - > /dev/null; \
 	done
 
-check: setup-lint build lint
+check: build lint
 
 # --- Testing ---
 
