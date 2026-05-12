@@ -67,6 +67,10 @@ func run() error {
 	}
 	defer rawDB.Close()
 
+	rawDB.SetMaxOpenConns(25)
+	rawDB.SetMaxIdleConns(5)
+	rawDB.SetConnMaxLifetime(5 * time.Minute)
+
 	db := postgres.NewDB(rawDB)
 	auditRepo := postgres.NewAuditRepository(rawDB)
 	userRepo := postgres.NewUserRepository(rawDB)

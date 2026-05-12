@@ -12,6 +12,11 @@ import (
 func StartPartitionManager(ctx context.Context, db *sql.DB, retentionMonths int) {
 	ticker := time.NewTicker(24 * time.Hour)
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("partition manager panic: %v", r)
+			}
+		}()
 		for {
 			select {
 			case <-ctx.Done():
