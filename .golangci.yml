@@ -54,12 +54,16 @@ linters-settings:
           - github.com/lib/pq
           - golang.org/x/crypto/bcrypt
           - ardoise/libs/shared/money
+          - ardoise/libs/shared/jwt
           - ardoise/apps/backend/internal/core/domain
           - ardoise/apps/backend/internal/core/application
           - ardoise/apps/backend/internal/core/mocks
           - ardoise/apps/backend/internal/core/infrastructure/http
           - ardoise/apps/backend/internal/core/infrastructure/postgres
           - ardoise/apps/backend/internal/core/infrastructure/csv
+          - ardoise/apps/backend/internal/core/infrastructure/auth/hmac
+          - ardoise/apps/backend/internal/core/infrastructure/auth/clerk
+          - github.com/MicahParks/keyfunc/v3
 
 issues:
   max-issues-per-linter: 0

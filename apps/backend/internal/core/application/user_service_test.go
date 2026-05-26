@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -128,6 +129,60 @@ func TestUserService_UpdateUser(t *testing.T) {
 		err := service.UpdateUser(context.Background(), "Alice", "Alice S.")
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestUserService_ProvisionUser(t *testing.T) {
+	t.Run("no-op when user exists", func(t *testing.T) {
+		saveCalled := false
+		repo := &mocks.MockUserRepo{
+			GetByIDFunc: func(_ context.Context, _ domain.UserID) (*domain.User, error) {
+				return &domain.User{ID: "user_abc"}, nil
+			},
+			SaveFunc: func(_ context.Context, _ domain.User) error {
+				saveCalled = true
+				return nil
+			},
+		}
+		svc := NewUserService(repo, []byte("s"))
+		if err := svc.ProvisionUser(context.Background(), "user_abc", "Alice"); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if saveCalled {
+			t.Error("Save should not be called when user already exists")
+		}
+	})
+
+	t.Run("creates user when not found", func(t *testing.T) {
+		var saved domain.User
+		repo := &mocks.MockUserRepo{
+			GetByIDFunc: func(_ context.Context, _ domain.UserID) (*domain.User, error) {
+				return nil, domain.ErrUserNotFound
+			},
+			SaveFunc: func(_ context.Context, u domain.User) error {
+				saved = u
+				return nil
+			},
+		}
+		svc := NewUserService(repo, []byte("s"))
+		if err := svc.ProvisionUser(context.Background(), "user_abc", "Alice"); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if saved.ID != "user_abc" || saved.DisplayName != "Alice" {
+			t.Errorf("unexpected saved user: %+v", saved)
+		}
+	})
+
+	t.Run("propagates unexpected repo error", func(t *testing.T) {
+		repo := &mocks.MockUserRepo{
+			GetByIDFunc: func(_ context.Context, _ domain.UserID) (*domain.User, error) {
+				return nil, fmt.Errorf("db down")
+			},
+		}
+		svc := NewUserService(repo, []byte("s"))
+		if err := svc.ProvisionUser(context.Background(), "user_abc", "Alice"); err == nil {
+			t.Error("expected error from repo, got nil")
 		}
 	})
 }

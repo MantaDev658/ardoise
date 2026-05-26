@@ -6,11 +6,10 @@ import (
 	"net/http/httptest"
 	"sync"
 	"testing"
-	"time"
 
-	"github.com/golang-jwt/jwt/v5"
-
+	hmacauth "ardoise/apps/backend/internal/core/infrastructure/auth/hmac"
 	"ardoise/apps/backend/internal/core/mocks"
+	sharedjwt "ardoise/libs/shared/jwt"
 )
 
 // makeConcurrentTestServer builds a live httptest.Server backed by the full handler
@@ -33,12 +32,9 @@ func makeConcurrentTestServer(t *testing.T) (server *httptest.Server, bearerToke
 	protected.HandleFunc("GET /groups", h.ListGroups)
 
 	mux := http.NewServeMux()
-	mux.Handle("/", AuthMiddleware([]byte(secret))(protected))
+	mux.Handle("/", AuthMiddleware(hmacauth.New([]byte(secret)))(protected))
 
-	tok, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub": "Alice",
-		"exp": time.Now().Add(time.Hour).Unix(),
-	}).SignedString([]byte(secret))
+	tok, err := sharedjwt.Sign("Alice", []byte(secret))
 	if err != nil {
 		t.Fatalf("failed to sign test token: %v", err)
 	}

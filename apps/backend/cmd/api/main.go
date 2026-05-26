@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"ardoise/apps/backend/internal/core/application"
+	clerkauth "ardoise/apps/backend/internal/core/infrastructure/auth/clerk"
+	hmacauth "ardoise/apps/backend/internal/core/infrastructure/auth/hmac"
 	openhttp "ardoise/apps/backend/internal/core/infrastructure/http"
 	"ardoise/apps/backend/internal/core/infrastructure/postgres"
 
@@ -21,20 +23,30 @@ import (
 )
 
 type config struct {
-	dbURL      string
-	jwtSecret  string
-	corsOrigin string
-	port       string
+	dbURL        string
+	jwtSecret    string
+	authProvider string // "jwt" | "clerk"
+	clerkJWKSURL string
+	corsOrigin   string
+	port         string
 }
 
 func loadConfig() config {
 	_ = godotenv.Load()
-	return config{
-		dbURL:      mustEnv("DATABASE_URL"),
-		jwtSecret:  mustEnv("JWT_SECRET"),
-		corsOrigin: envOr("CORS_ORIGIN", "*"),
-		port:       ":" + envOr("PORT", "8080"),
+	provider := envOr("AUTH_PROVIDER", "jwt")
+	cfg := config{
+		dbURL:        mustEnv("DATABASE_URL"),
+		authProvider: provider,
+		clerkJWKSURL: envOr("CLERK_JWKS_URL", ""),
+		corsOrigin:   envOr("CORS_ORIGIN", "*"),
+		port:         ":" + envOr("PORT", "8080"),
 	}
+	if provider == "jwt" {
+		cfg.jwtSecret = mustEnv("JWT_SECRET")
+	} else {
+		cfg.jwtSecret = envOr("JWT_SECRET", "")
+	}
+	return cfg
 }
 
 func mustEnv(key string) string {
@@ -106,10 +118,37 @@ func run() error {
 	protected.HandleFunc("DELETE /groups/{id}/members/{user_id}", h.RemoveGroupMember)
 	protected.HandleFunc("GET /groups/{id}/activity", h.GetGroupActivity)
 
+	var auth application.Authenticator
+	var authChain func(http.Handler) http.Handler
+
+	switch cfg.authProvider {
+	case "clerk":
+		if cfg.clerkJWKSURL == "" {
+			return fmt.Errorf("CLERK_JWKS_URL is required when AUTH_PROVIDER=clerk")
+		}
+		auth = clerkauth.New(cfg.clerkJWKSURL)
+		authChain = func(next http.Handler) http.Handler {
+			return openhttp.AuthMiddleware(auth)(
+				openhttp.UserProvisioningMiddleware(userService)(next),
+			)
+		}
+	default:
+		auth = hmacauth.New([]byte(cfg.jwtSecret))
+		authChain = openhttp.AuthMiddleware(auth)
+	}
+
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /auth/register", h.RegisterUser)
-	mux.HandleFunc("POST /auth/login", h.LoginUser)
-	mux.Handle("/", openhttp.AuthMiddleware([]byte(cfg.jwtSecret))(protected))
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"status":"ok"}`)
+	})
+
+	if cfg.authProvider == "jwt" {
+		mux.HandleFunc("POST /auth/register", h.RegisterUser)
+		mux.HandleFunc("POST /auth/login", h.LoginUser)
+	}
+
+	mux.Handle("/", authChain(protected))
 
 	handler := openhttp.CORSMiddleware(cfg.corsOrigin)(
 		http.TimeoutHandler(mux, 10*time.Second, `{"error":"request timeout"}`),
@@ -122,7 +161,7 @@ func run() error {
 		WriteTimeout:      15 * time.Second,
 	}
 
-	fmt.Printf("API running on %s\n", cfg.port)
+	fmt.Printf("API running on %s (auth: %s)\n", cfg.port, cfg.authProvider)
 	serverError := make(chan error, 1)
 	go func() {
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

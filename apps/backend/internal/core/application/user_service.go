@@ -2,13 +2,13 @@ package application
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 
 	"ardoise/apps/backend/internal/core/domain"
+	sharedjwt "ardoise/libs/shared/jwt"
 )
 
 type UserService struct {
@@ -65,11 +65,7 @@ func (s *UserService) LoginUser(ctx context.Context, id, plainPassword string) (
 		return "", domain.ErrInvalidCredentials
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub": user.ID,
-		"exp": time.Now().Add(time.Hour * 24).Unix(),
-	})
-	return token.SignedString(s.jwtSecret)
+	return sharedjwt.Sign(string(user.ID), s.jwtSecret)
 }
 
 func (s *UserService) ListUsers(ctx context.Context) ([]domain.User, error) {
@@ -114,6 +110,22 @@ func (s *UserService) ChangePassword(ctx context.Context, id, currentPlain, newP
 
 func (s *UserService) ListFriends(ctx context.Context, userID string) ([]domain.User, error) {
 	return s.repo.ListCoMembers(ctx, domain.UserID(userID))
+}
+
+// ProvisionUser creates a user record if one does not already exist. Used by
+// external identity providers (e.g. Clerk) for JIT user creation.
+func (s *UserService) ProvisionUser(ctx context.Context, id, displayName string) error {
+	_, err := s.repo.GetByID(ctx, domain.UserID(id))
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, domain.ErrUserNotFound) {
+		return fmt.Errorf("provision user: %w", err)
+	}
+	return s.repo.Save(ctx, domain.User{
+		ID:          domain.UserID(id),
+		DisplayName: displayName,
+	})
 }
 
 // DeleteUser soft-deletes the account, preserving audit history.

@@ -1,0 +1,3 @@
+name: ardoise-infra
+runtime: go
+description: Ardoise cloud infrastructure — Neon DB + Fly.io app
