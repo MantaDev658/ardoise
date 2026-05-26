@@ -64,7 +64,7 @@
 </script>
 
 <svelte:head>
-	<title>Groups — Open Split</title>
+	<title>Groups — Ardoise</title>
 </svelte:head>
 
 <Window title="MY GROUPS">

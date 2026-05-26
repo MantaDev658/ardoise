@@ -79,7 +79,7 @@
 </script>
 
 <svelte:head>
-	<title>Settle Up — Open Split</title>
+	<title>Settle Up — Ardoise</title>
 </svelte:head>
 
 <div class="max-w-sm">

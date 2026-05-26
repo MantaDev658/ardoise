@@ -8,7 +8,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 
-	"opensplit/apps/backend/internal/core/domain"
+	"ardoise/apps/backend/internal/core/domain"
 )
 
 type UserService struct {

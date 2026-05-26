@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"opensplit/apps/backend/internal/core/domain"
-	"opensplit/libs/shared/money"
+	"ardoise/apps/backend/internal/core/domain"
+	"ardoise/libs/shared/money"
 
 	"github.com/google/uuid"
 )

@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"opensplit/apps/backend/internal/core/domain"
+	"ardoise/apps/backend/internal/core/domain"
 )
 
 type UserRepository struct {

@@ -10,7 +10,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	"opensplit/apps/backend/internal/core/mocks"
+	"ardoise/apps/backend/internal/core/mocks"
 )
 
 // makeConcurrentTestServer builds a live httptest.Server backed by the full handler

@@ -3,7 +3,7 @@ package domain
 import (
 	"time"
 
-	"opensplit/libs/shared/money"
+	"ardoise/libs/shared/money"
 )
 
 type ExpenseID string

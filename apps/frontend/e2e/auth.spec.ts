@@ -9,8 +9,8 @@ test('register creates account and redirects to dashboard', async ({ page }) => 
 	await page.fill('#reg-password', user.password);
 	await page.getByRole('button', { name: 'REGISTER' }).click();
 	await page.waitForURL('/');
-	// Nav brand text ("OPEN SPLIT") confirms the authenticated layout rendered
-	await expect(page.getByText('OPEN SPLIT', { exact: true })).toBeVisible();
+	// Nav brand text ("Ardoise") confirms the authenticated layout rendered
+	await expect(page.getByText('Ardoise', { exact: true })).toBeVisible();
 });
 
 test('login with valid credentials redirects to dashboard', async ({ page }) => {
@@ -19,7 +19,7 @@ test('login with valid credentials redirects to dashboard', async ({ page }) => 
 	await page.evaluate(() => localStorage.clear());
 	await loginAs(page, user);
 	await expect(page).toHaveURL('/');
-	await expect(page.getByText('OPEN SPLIT', { exact: true })).toBeVisible();
+	await expect(page.getByText('Ardoise', { exact: true })).toBeVisible();
 });
 
 test('registering a duplicate username shows an error', async ({ page }) => {

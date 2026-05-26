@@ -1,4 +1,4 @@
-# Open Split
+# Ardoise
 
 A self-hosted, open-source expense splitting app. Track shared costs, manage groups, simplify debts, and settle up — without sending your data to a third party.
 
@@ -23,7 +23,7 @@ A self-hosted, open-source expense splitting app. Track shared costs, manage gro
 Go workspace monorepo. Two modules, two binaries, one SvelteKit SPA.
 
 ```
-open-split/
+ardoise/
 ├── apps/backend/
 │   ├── cmd/api/            # REST API server
 │   ├── cmd/cli/            # CSV expense parser (standalone binary)
@@ -68,8 +68,8 @@ Domain layer has no external dependencies. Infrastructure depends on domain, nev
 ## Getting Started
 
 ```bash
-git clone https://github.com/yourusername/opensplit.git
-cd opensplit
+git clone https://github.com/yourusername/ardoise.git
+cd ardoise
 
 # Install frontend dependencies
 make frontend-install
@@ -95,7 +95,7 @@ Create a `.env` file in the repo root (loaded automatically by the API):
 
 Example `.env`:
 ```
-DATABASE_URL=postgresql://postgres:password@localhost:5432/opensplit?sslmode=disable
+DATABASE_URL=postgresql://postgres:password@localhost:5432/ardoise?sslmode=disable
 JWT_SECRET=change-me-in-production
 CORS_ORIGIN=http://localhost:5173
 ```

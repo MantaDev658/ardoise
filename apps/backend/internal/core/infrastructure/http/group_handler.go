@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"opensplit/apps/backend/internal/core/application"
-	"opensplit/apps/backend/internal/core/domain"
+	"ardoise/apps/backend/internal/core/application"
+	"ardoise/apps/backend/internal/core/domain"
 )
 
 // POST /groups — creator is taken from JWT, never from request body

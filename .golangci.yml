@@ -53,13 +53,13 @@ linters-settings:
           - github.com/joho/godotenv
           - github.com/lib/pq
           - golang.org/x/crypto/bcrypt
-          - opensplit/libs/shared/money
-          - opensplit/apps/backend/internal/core/domain
-          - opensplit/apps/backend/internal/core/application
-          - opensplit/apps/backend/internal/core/mocks
-          - opensplit/apps/backend/internal/core/infrastructure/http
-          - opensplit/apps/backend/internal/core/infrastructure/postgres
-          - opensplit/apps/backend/internal/core/infrastructure/csv
+          - ardoise/libs/shared/money
+          - ardoise/apps/backend/internal/core/domain
+          - ardoise/apps/backend/internal/core/application
+          - ardoise/apps/backend/internal/core/mocks
+          - ardoise/apps/backend/internal/core/infrastructure/http
+          - ardoise/apps/backend/internal/core/infrastructure/postgres
+          - ardoise/apps/backend/internal/core/infrastructure/csv
 
 issues:
   max-issues-per-linter: 0

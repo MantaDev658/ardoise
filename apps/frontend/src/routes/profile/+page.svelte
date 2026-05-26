@@ -55,7 +55,7 @@
 </script>
 
 <svelte:head>
-	<title>Profile — Open Split</title>
+	<title>Profile — Ardoise</title>
 </svelte:head>
 
 <div class="max-w-sm flex flex-col gap-4">

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"opensplit/apps/backend/internal/core/domain"
+	"ardoise/apps/backend/internal/core/domain"
 
 	"github.com/lib/pq"
 )

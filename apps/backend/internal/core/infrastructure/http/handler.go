@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"opensplit/apps/backend/internal/core/application"
-	"opensplit/apps/backend/internal/core/domain"
+	"ardoise/apps/backend/internal/core/application"
+	"ardoise/apps/backend/internal/core/domain"
 )
 
 type APIHandler struct {

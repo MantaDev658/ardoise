@@ -8,10 +8,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"opensplit/apps/backend/internal/core/application"
-	"opensplit/apps/backend/internal/core/domain"
-	"opensplit/apps/backend/internal/core/mocks"
-	"opensplit/libs/shared/money"
+	"ardoise/apps/backend/internal/core/application"
+	"ardoise/apps/backend/internal/core/domain"
+	"ardoise/apps/backend/internal/core/mocks"
+	"ardoise/libs/shared/money"
 
 	"golang.org/x/crypto/bcrypt"
 )

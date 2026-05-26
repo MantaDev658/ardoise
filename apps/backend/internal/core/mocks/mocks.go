@@ -1,8 +1,8 @@
 package mocks
 
 import (
+	"ardoise/apps/backend/internal/core/domain"
 	"context"
-	"opensplit/apps/backend/internal/core/domain"
 )
 
 type MockTransactor struct {

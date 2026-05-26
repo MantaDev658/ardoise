@@ -1,15 +1,15 @@
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: opensplit-db
+    container_name: ardoise-db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: opensplit
+      POSTGRES_DB: ardoise
     ports:
       - "5432:5432"
     volumes:
-      - opensplit-data:/var/lib/postgresql/data
+      - ardoise-data:/var/lib/postgresql/data
 
 volumes:
-  opensplit-data:
+  ardoise-data:

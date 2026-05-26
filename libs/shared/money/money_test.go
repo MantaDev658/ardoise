@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"opensplit/libs/shared/money"
+	"ardoise/libs/shared/money"
 )
 
 func TestMoney_Distribute(t *testing.T) {

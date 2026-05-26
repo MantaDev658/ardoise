@@ -3,7 +3,7 @@
 
 # --- Variables ---
 GOBIN = $(shell go env GOPATH)/bin
-DB_URL = "postgresql://postgres:password@localhost:5432/opensplit?sslmode=disable"
+DB_URL = "postgresql://postgres:password@localhost:5432/ardoise?sslmode=disable"
 MIGRATE_PATH = apps/backend/internal/core/infrastructure/postgres/migrations
 MODULES = libs/shared apps/backend
 
@@ -13,12 +13,12 @@ setup-lint:
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
 build:
-	@echo "Building Open Split CLI..."
-	go build -o bin/opensplit-cli ./apps/backend/cmd/cli
-	@echo "✅ Binary compiled to bin/opensplit-cli"
-	@echo "Building Open Split API..."
-	go build -o bin/opensplit-api ./apps/backend/cmd/api
-	@echo "✅ Binary compiled to bin/opensplit-api"
+	@echo "Building Ardoise CLI..."
+	go build -o bin/ardoise-cli ./apps/backend/cmd/cli
+	@echo "✅ Binary compiled to bin/ardoise-cli"
+	@echo "Building Ardoise API..."
+	go build -o bin/ardoise-api ./apps/backend/cmd/api
+	@echo "✅ Binary compiled to bin/ardoise-api"
 
 lint:
 	@for mod in $(MODULES); do \
@@ -71,7 +71,7 @@ dev: db-up migrate-up
 	wait
 
 run-api: db-up
-	@echo "Starting Open Split API..."
+	@echo "Starting Ardoise API..."
 	go run ./apps/backend/cmd/api/main.go
 
 run-cli:

@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"opensplit/apps/backend/internal/core/domain"
-	"opensplit/apps/backend/internal/core/mocks"
-	"opensplit/libs/shared/money"
+	"ardoise/apps/backend/internal/core/domain"
+	"ardoise/apps/backend/internal/core/mocks"
+	"ardoise/libs/shared/money"
 )
 
 func newTestExpenseService(eRepo *mocks.MockExpenseRepo, gRepo *mocks.MockGroupRepo, aRepo *mocks.MockAuditRepo) *ExpenseService {

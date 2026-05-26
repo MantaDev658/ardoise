@@ -1,8 +1,8 @@
 package http
 
 import (
-	"opensplit/apps/backend/internal/core/application"
-	"opensplit/apps/backend/internal/core/mocks"
+	"ardoise/apps/backend/internal/core/application"
+	"ardoise/apps/backend/internal/core/mocks"
 )
 
 func newTestServices(eRepo *mocks.MockExpenseRepo, uRepo *mocks.MockUserRepo, gRepo *mocks.MockGroupRepo, aRepo *mocks.MockAuditRepo) (*application.ExpenseService, *application.UserService, *application.GroupService) {

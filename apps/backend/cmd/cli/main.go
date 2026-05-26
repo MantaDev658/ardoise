@@ -6,8 +6,8 @@ import (
 	"os"
 	"sort"
 
-	"opensplit/apps/backend/internal/core/domain"
-	"opensplit/apps/backend/internal/core/infrastructure/csv"
+	"ardoise/apps/backend/internal/core/domain"
+	"ardoise/apps/backend/internal/core/infrastructure/csv"
 )
 
 func main() {
@@ -16,7 +16,7 @@ func main() {
 	flag.Parse()
 
 	if *filePath == "" {
-		fmt.Fprintln(os.Stderr, "Usage: opensplit-cli -file=<path_to_csv> [--no-simplify]")
+		fmt.Fprintln(os.Stderr, "Usage: ardoise-cli -file=<path_to_csv> [--no-simplify]")
 		os.Exit(1)
 	}
 
@@ -38,7 +38,7 @@ func main() {
 func printSimplifiedTransactions(balances map[domain.UserID]int64) {
 	transactions := domain.SimplifyDebts(balances)
 
-	fmt.Println("\n--- 💸 Open Split: Settle Up Instructions ---")
+	fmt.Println("\n--- 💸 Ardoise: Settle Up Instructions ---")
 	if len(transactions) == 0 {
 		fmt.Println("🎉 Everyone is completely settled up!")
 	} else {
@@ -50,7 +50,7 @@ func printSimplifiedTransactions(balances map[domain.UserID]int64) {
 }
 
 func printRawLedger(balances map[domain.UserID]int64) {
-	fmt.Println("\n--- 📊 Open Split: Raw Net Balances ---")
+	fmt.Println("\n--- 📊 Ardoise: Raw Net Balances ---")
 	var users []domain.UserID
 	for user := range balances {
 		users = append(users, user)

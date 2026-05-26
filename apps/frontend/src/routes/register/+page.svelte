@@ -40,12 +40,12 @@
 </script>
 
 <svelte:head>
-	<title>Register — Open Split</title>
+	<title>Register — Ardoise</title>
 </svelte:head>
 
 <div class="min-h-screen bg-90s-tile flex items-center justify-center p-4">
 	<div class="w-80">
-		<Window title="Open Split v1.0 — Register">
+		<Window title="Ardoise v1.0 — Register">
 			<form class="flex flex-col gap-3 font-system" onsubmit={handleSubmit}>
 				<div class="flex flex-col gap-1">
 					<label class="text-sm font-bold" for="reg-id">Username</label>

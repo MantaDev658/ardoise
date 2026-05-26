@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"opensplit/libs/shared/money"
+	"ardoise/libs/shared/money"
 )
 
 func TestNewExpense_Validation(t *testing.T) {

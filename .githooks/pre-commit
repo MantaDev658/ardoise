@@ -49,7 +49,7 @@ fmt_dur() {
 HOOK_START_MS=$(now_ms)
 
 # ── Header ────────────────────────────────────────────────────────────
-printf "\n${YLW}  Open Split — pre-commit${NC}\n"
+printf "\n${YLW}  Ardoise — pre-commit${NC}\n"
 printf "${DIM}  ─────────────────────────────────────────${NC}\n\n"
 
 # ── Helpers ───────────────────────────────────────────────────────────
@@ -125,7 +125,7 @@ run_step "Integration tests"  make test-integration --no-print-directory
 
 # ═══════════════════════════════════════════════════════════════════════
 # Infrastructure: Backend API (needed for E2E)
-# Step 1 (make check) already compiled bin/opensplit-api — use that
+# Step 1 (make check) already compiled bin/ardoise-api — use that
 # directly so startup is instant and the process is trivial to kill.
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -143,9 +143,9 @@ if api_alive; then
 else
     api_start_ms=$(now_ms)
     si=0
-    DATABASE_URL="postgresql://postgres:password@localhost:5432/opensplit?sslmode=disable" \
+    DATABASE_URL="postgresql://postgres:password@localhost:5432/ardoise?sslmode=disable" \
     JWT_SECRET="pre-commit-hook-secret" \
-    ./bin/opensplit-api >"$API_LOG" 2>&1 &
+    ./bin/ardoise-api >"$API_LOG" 2>&1 &
     API_PID=$!
     until nc -z 127.0.0.1 8080 2>/dev/null; do
         printf "\r       %-34s${YLW}%s${NC}" "Backend API" "${SPIN[$((si % 10))]}"

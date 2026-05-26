@@ -37,12 +37,12 @@
 </script>
 
 <svelte:head>
-	<title>Login — Open Split</title>
+	<title>Login — Ardoise</title>
 </svelte:head>
 
 <div class="min-h-screen bg-90s-tile flex items-center justify-center p-4">
 	<div class="w-80">
-		<Window title="Open Split v1.0 — Login">
+		<Window title="Ardoise v1.0 — Login">
 			<form class="flex flex-col gap-3 font-system" onsubmit={handleSubmit}>
 				<div class="flex flex-col gap-1">
 					<label class="text-sm font-bold" for="login-id">Username</label>

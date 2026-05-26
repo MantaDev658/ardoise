@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	"opensplit/apps/backend/internal/core/domain"
-	"opensplit/apps/backend/internal/core/mocks"
-	"opensplit/libs/shared/money"
+	"ardoise/apps/backend/internal/core/domain"
+	"ardoise/apps/backend/internal/core/mocks"
+	"ardoise/libs/shared/money"
 )
 
 func newTestGroupService(gRepo *mocks.MockGroupRepo, eRepo *mocks.MockExpenseRepo, aRepo *mocks.MockAuditRepo) *GroupService {

@@ -274,7 +274,7 @@
 </script>
 
 <svelte:head>
-	<title>{group?.Name ?? 'Group'} — Open Split</title>
+	<title>{group?.Name ?? 'Group'} — Ardoise</title>
 </svelte:head>
 
 {#if loading}

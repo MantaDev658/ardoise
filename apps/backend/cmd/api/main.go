@@ -12,9 +12,9 @@ import (
 	"syscall"
 	"time"
 
-	"opensplit/apps/backend/internal/core/application"
-	openhttp "opensplit/apps/backend/internal/core/infrastructure/http"
-	"opensplit/apps/backend/internal/core/infrastructure/postgres"
+	"ardoise/apps/backend/internal/core/application"
+	openhttp "ardoise/apps/backend/internal/core/infrastructure/http"
+	"ardoise/apps/backend/internal/core/infrastructure/postgres"
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"

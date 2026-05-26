@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "opensplit-frontend",
+      "name": "ardoise-frontend",
       "devDependencies": {
         "@playwright/test": "^1.49.0",
         "@sveltejs/adapter-static": "^3.0.0",

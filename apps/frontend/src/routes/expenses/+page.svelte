@@ -305,7 +305,7 @@
 </script>
 
 <svelte:head>
-	<title>Expenses — Open Split</title>
+	<title>Expenses — Ardoise</title>
 </svelte:head>
 
 <Window title="EXPENSE LEDGER">

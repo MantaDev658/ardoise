@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"opensplit/apps/backend/internal/core/domain"
+	"ardoise/apps/backend/internal/core/domain"
 )
 
 func TestUserRepository_DuplicateUsername(t *testing.T) {

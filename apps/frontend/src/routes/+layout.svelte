@@ -23,7 +23,7 @@
 
 {#if authenticated}
 	<Marquee
-		text="★ WELCOME TO OPEN SPLIT ★ YOUR BALANCES AWAIT ★ SPLIT SMART, SETTLE FAST ★ EST. 2025 ★"
+		text="★ WELCOME TO Ardoise ★ YOUR BALANCES AWAIT ★ SPLIT SMART, SETTLE FAST ★ EST. 2025 ★"
 	/>
 	<Nav />
 {/if}

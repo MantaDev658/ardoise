@@ -21,7 +21,7 @@ function jwtSub(token: string): string | null {
 function loadFromStorage(): AuthState {
 	if (typeof localStorage === 'undefined') return { token: null, userID: null };
 	try {
-		const raw = localStorage.getItem('opensplit_auth');
+		const raw = localStorage.getItem('ardoise_auth');
 		return raw ? (JSON.parse(raw) as AuthState) : { token: null, userID: null };
 	} catch {
 		return { token: null, userID: null };
@@ -30,7 +30,7 @@ function loadFromStorage(): AuthState {
 
 function saveToStorage(state: AuthState): void {
 	if (typeof localStorage === 'undefined') return;
-	localStorage.setItem('opensplit_auth', JSON.stringify(state));
+	localStorage.setItem('ardoise_auth', JSON.stringify(state));
 }
 
 function createAuthStore() {
@@ -45,7 +45,7 @@ function createAuthStore() {
 		},
 		logout(): void {
 			if (typeof localStorage !== 'undefined') {
-				localStorage.removeItem('opensplit_auth');
+				localStorage.removeItem('ardoise_auth');
 			}
 			set({ token: null, userID: null });
 		}

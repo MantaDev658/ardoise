@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"opensplit/apps/backend/internal/core/domain"
-	"opensplit/libs/shared/money"
+	"ardoise/apps/backend/internal/core/domain"
+	"ardoise/libs/shared/money"
 )
 
 type ExpenseRepository struct {

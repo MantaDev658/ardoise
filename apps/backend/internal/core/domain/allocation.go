@@ -3,7 +3,7 @@ package domain
 import (
 	"math"
 
-	"opensplit/libs/shared/money"
+	"ardoise/libs/shared/money"
 )
 
 // AllocationType identifies which split algorithm to apply.

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/http"
 
-	"opensplit/apps/backend/internal/core/domain"
+	"ardoise/apps/backend/internal/core/domain"
 )
 
 // POST /auth/register

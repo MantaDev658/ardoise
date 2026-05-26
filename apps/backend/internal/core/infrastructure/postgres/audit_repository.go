@@ -4,7 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"opensplit/apps/backend/internal/core/domain"
+
+	"ardoise/apps/backend/internal/core/domain"
 )
 
 type AuditRepository struct {

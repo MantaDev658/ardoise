@@ -8,8 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"opensplit/apps/backend/internal/core/domain"
-	"opensplit/apps/backend/internal/core/mocks"
+	"ardoise/apps/backend/internal/core/domain"
+	"ardoise/apps/backend/internal/core/mocks"
 
 	"golang.org/x/crypto/bcrypt"
 )

@@ -1,4 +1,4 @@
-module opensplit/apps/backend
+module ardoise/apps/backend
 
 go 1.26.1
 
