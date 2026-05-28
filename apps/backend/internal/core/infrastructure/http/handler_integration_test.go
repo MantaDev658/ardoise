@@ -15,7 +15,6 @@ import (
 	"ardoise/apps/backend/internal/core/application"
 	hmacauth "ardoise/apps/backend/internal/core/infrastructure/auth/hmac"
 	"ardoise/apps/backend/internal/core/infrastructure/postgres"
-	sharedjwt "ardoise/libs/shared/jwt"
 )
 
 const integrationTestSecret = "integration-test-secret"
@@ -71,7 +70,7 @@ func setupIntegrationServer(t *testing.T) *httptest.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /auth/register", h.RegisterUser)
 	mux.HandleFunc("POST /auth/login", h.LoginUser)
-	mux.Handle("/", AuthMiddleware(auth)(UserProvisioningMiddleware(userSvc)(protected)))
+	mux.Handle("/", AuthMiddleware(auth)(protected))
 
 	srv := httptest.NewServer(mux)
 	t.Cleanup(func() {
@@ -152,38 +151,6 @@ func TestIntegration_RegisterLoginAndMe(t *testing.T) {
 	if user.DisplayName != "Alice" {
 		t.Errorf("expected DisplayName Alice, got %q", user.DisplayName)
 	}
-}
-
-// TestIntegration_ProvisioningOnFirstRequest verifies that UserProvisioningMiddleware
-// auto-creates a user record when a new JWT sub is seen, and is idempotent on repeat.
-func TestIntegration_ProvisioningOnFirstRequest(t *testing.T) {
-	srv := setupIntegrationServer(t)
-
-	tok, err := sharedjwt.Sign("newuser", []byte(integrationTestSecret))
-	if err != nil {
-		t.Fatalf("sign token: %v", err)
-	}
-
-	// First request — user doesn't exist yet; provisioning should create them.
-	resp := doJSON(t, srv.Client(), "GET", srv.URL+"/users/me", nil, tok)
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("first GET /users/me: expected 200, got %d", resp.StatusCode)
-	}
-	var user struct {
-		ID string `json:"ID"`
-	}
-	json.NewDecoder(resp.Body).Decode(&user) //nolint:errcheck
-	resp.Body.Close()
-	if user.ID != "newuser" {
-		t.Errorf("expected ID newuser, got %q", user.ID)
-	}
-
-	// Second request — provisioning must be idempotent (no duplicate-key error).
-	resp = doJSON(t, srv.Client(), "GET", srv.URL+"/users/me", nil, tok)
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("second GET /users/me: expected 200, got %d", resp.StatusCode)
-	}
-	resp.Body.Close()
 }
 
 // TestIntegration_GroupAndExpenseFlow exercises the full create-group → add-member →

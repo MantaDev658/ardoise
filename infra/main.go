@@ -15,8 +15,7 @@ import (
 // Usage:
 //
 //	cd infra
-//	pulumi config set --secret clerkJwksUrl <url>
-//	pulumi config set --secret jwtSecret <secret>   # for AUTH_PROVIDER=jwt fallback
+//	pulumi config set --secret jwtSecret <secret>
 //	pulumi up
 func main() {
 	pulumi.Run(func(ctx *pulumi.Context) error {
@@ -41,22 +40,12 @@ func main() {
 			return err
 		}
 
-		clerkJWKSURL := cfg.RequireSecret("clerkJwksUrl")
 		jwtSecret := cfg.RequireSecret("jwtSecret")
 
 		_, err = flysdk.NewSecret(ctx, "secret-db-url", &flysdk.SecretArgs{
 			App:   app.Name,
 			Name:  pulumi.String("DATABASE_URL"),
 			Value: project.ConnectionUri.ApplyT(func(v string) string { return v }).(pulumi.StringOutput),
-		})
-		if err != nil {
-			return err
-		}
-
-		_, err = flysdk.NewSecret(ctx, "secret-clerk-jwks-url", &flysdk.SecretArgs{
-			App:   app.Name,
-			Name:  pulumi.String("CLERK_JWKS_URL"),
-			Value: clerkJWKSURL,
 		})
 		if err != nil {
 			return err
@@ -73,7 +62,6 @@ func main() {
 
 		ctx.Export("apiUrl", pulumi.Sprintf("https://%s.fly.dev", app.Name))
 		ctx.Export("dbUrl", project.ConnectionUri)
-		ctx.Export("clerkJwksUrl", clerkJWKSURL)
 
 		return nil
 	})

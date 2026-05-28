@@ -34,37 +34,3 @@ func AuthMiddleware(auth application.Authenticator) func(http.Handler) http.Hand
 		})
 	}
 }
-
-type displayNameContextKey string
-
-const displayNameKey displayNameContextKey = "display_name"
-
-// WithDisplayName attaches a display name to the request context so that
-// UserProvisioningMiddleware can use it when creating the user record.
-func WithDisplayName(r *http.Request, name string) *http.Request {
-	return r.WithContext(context.WithValue(r.Context(), displayNameKey, name))
-}
-
-// UserProvisioningMiddleware auto-creates a user record on first authenticated request
-// when using an external identity provider (e.g. Clerk). It is a no-op if the user
-// already exists. Must run after AuthMiddleware.
-func UserProvisioningMiddleware(svc *application.UserService) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			userID, ok := r.Context().Value(UserIDKey).(string)
-			if !ok || userID == "" {
-				http.Error(w, `{"error": "unauthorized"}`, http.StatusUnauthorized)
-				return
-			}
-			displayName, _ := r.Context().Value(displayNameKey).(string)
-			if displayName == "" {
-				displayName = userID
-			}
-			if err := svc.ProvisionUser(r.Context(), userID, displayName); err != nil {
-				http.Error(w, `{"error": "user provisioning failed"}`, http.StatusInternalServerError)
-				return
-			}
-			next.ServeHTTP(w, r)
-		})
-	}
-}

@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"golang.org/x/crypto/bcrypt"
@@ -18,24 +17,6 @@ type UserService struct {
 
 func NewUserService(repo domain.UserRepository, secret []byte) *UserService {
 	return &UserService{repo: repo, jwtSecret: secret}
-}
-
-type CreateUserCommand struct {
-	ID          string `json:"id"`
-	DisplayName string `json:"display_name"`
-}
-
-func (s *UserService) CreateUser(ctx context.Context, cmd CreateUserCommand) error {
-	if cmd.ID == "" || cmd.DisplayName == "" {
-		return fmt.Errorf("user ID and display name are required")
-	}
-
-	user := domain.User{
-		ID:          domain.UserID(cmd.ID),
-		DisplayName: cmd.DisplayName,
-	}
-
-	return s.repo.Save(ctx, user)
 }
 
 func (s *UserService) RegisterUser(ctx context.Context, id, displayName, plainPassword string) error {
@@ -114,22 +95,6 @@ func (s *UserService) ChangePassword(ctx context.Context, id, currentPlain, newP
 
 func (s *UserService) ListFriends(ctx context.Context, userID string) ([]domain.User, error) {
 	return s.repo.ListCoMembers(ctx, domain.UserID(userID))
-}
-
-// ProvisionUser creates a user record if one does not already exist. Used by
-// external identity providers (e.g. Clerk) for JIT user creation.
-func (s *UserService) ProvisionUser(ctx context.Context, id, displayName string) error {
-	_, err := s.repo.GetByID(ctx, domain.UserID(id))
-	if err == nil {
-		return nil
-	}
-	if !errors.Is(err, domain.ErrUserNotFound) {
-		return fmt.Errorf("provision user: %w", err)
-	}
-	return s.repo.Save(ctx, domain.User{
-		ID:          domain.UserID(id),
-		DisplayName: displayName,
-	})
 }
 
 // DeleteUser soft-deletes the account, preserving audit history.

@@ -25,7 +25,6 @@
 
 		try {
 			await register(id, displayName, password);
-			// Auto-login after registration so the user lands on the dashboard
 			await login(id, password);
 			goto('/');
 		} catch (err) {
