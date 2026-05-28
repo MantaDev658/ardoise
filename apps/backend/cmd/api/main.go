@@ -25,7 +25,7 @@ import (
 type config struct {
 	dbURL        string
 	jwtSecret    string
-	authProvider string // "jwt" | "clerk"
+	authProvider string
 	clerkJWKSURL string
 	corsOrigin   string
 	port         string
@@ -104,6 +104,7 @@ func run() error {
 	protected.HandleFunc("DELETE /expenses/{id}", h.DeleteExpense)
 	protected.HandleFunc("POST /settlements", h.CreateSettlement)
 
+	protected.HandleFunc("GET /users/me", h.GetCurrentUser)
 	protected.HandleFunc("GET /friends", h.ListFriends)
 	protected.HandleFunc("GET /users", h.ListUsers)
 	protected.HandleFunc("PUT /users/{id}", h.UpdateUser)

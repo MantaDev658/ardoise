@@ -72,6 +72,10 @@ func (s *UserService) ListUsers(ctx context.Context) ([]domain.User, error) {
 	return s.repo.ListAll(ctx)
 }
 
+func (s *UserService) GetUser(ctx context.Context, id string) (*domain.User, error) {
+	return s.repo.GetByID(ctx, domain.UserID(id))
+}
+
 func (s *UserService) UpdateUser(ctx context.Context, id string, displayName string) error {
 	if displayName == "" {
 		return domain.ErrEmptyDisplayName

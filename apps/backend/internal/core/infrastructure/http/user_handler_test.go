@@ -125,6 +125,51 @@ func TestAPIHandler_ChangePassword(t *testing.T) {
 	})
 }
 
+func TestGetCurrentUser(t *testing.T) {
+	uRepo := &mocks.MockUserRepo{
+		GetByIDFunc: func(_ context.Context, id domain.UserID) (*domain.User, error) {
+			if id == "Alice" {
+				return &domain.User{ID: "Alice", DisplayName: "Alice", IsActive: true}, nil
+			}
+			return nil, domain.ErrUserNotFound
+		},
+	}
+	es, us, gs := newTestServices(&mocks.MockExpenseRepo{}, uRepo, &mocks.MockGroupRepo{}, &mocks.MockAuditRepo{})
+	handler := NewAPIHandler(es, us, gs)
+
+	t.Run("returns 401 when unauthenticated", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/users/me", nil)
+		rr := httptest.NewRecorder()
+		handler.GetCurrentUser(rr, req)
+		if rr.Code != http.StatusUnauthorized {
+			t.Errorf("expected 401, got %d", rr.Code)
+		}
+	})
+
+	t.Run("returns current user when authenticated", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/users/me", nil)
+		ctx := context.WithValue(req.Context(), UserIDKey, "Alice")
+		rr := httptest.NewRecorder()
+		handler.GetCurrentUser(rr, req.WithContext(ctx))
+		if rr.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", rr.Code)
+		}
+		if !bytes.Contains(rr.Body.Bytes(), []byte("Alice")) {
+			t.Errorf("expected body to contain Alice, got %s", rr.Body.String())
+		}
+	})
+
+	t.Run("returns 404 when user not found", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/users/me", nil)
+		ctx := context.WithValue(req.Context(), UserIDKey, "ghost")
+		rr := httptest.NewRecorder()
+		handler.GetCurrentUser(rr, req.WithContext(ctx))
+		if rr.Code != http.StatusNotFound {
+			t.Errorf("expected 404, got %d", rr.Code)
+		}
+	})
+}
+
 func TestAPIHandler_ListFriends(t *testing.T) {
 	uRepo := &mocks.MockUserRepo{
 		ListCoMembersFunc: func(ctx context.Context, userID domain.UserID) ([]domain.User, error) {

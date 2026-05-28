@@ -52,7 +52,9 @@ test-fuzz:
 
 test-integration:
 	@echo "Running PostgreSQL Integration Tests..."
-	TEST_DB_URL=$(DB_URL) go test -v ./apps/backend/internal/core/infrastructure/postgres/...
+	TEST_DB_URL=$(DB_URL) go test -v \
+	  ./apps/backend/internal/core/infrastructure/postgres/... \
+	  ./apps/backend/internal/core/infrastructure/http/...
 
 test: test-unit test-race test-fuzz db-up setup-migrate migrate-up test-integration db-down
 
@@ -104,7 +106,7 @@ frontend-e2e:
 
 db-up:
 	@echo "Starting PostgreSQL..."
-	docker-compose up -d
+	docker compose up -d
 	@echo "Waiting for database to be ready..."
 	sleep 2
 

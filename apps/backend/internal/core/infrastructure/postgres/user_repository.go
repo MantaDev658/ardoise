@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"ardoise/apps/backend/internal/core/domain"
@@ -38,7 +39,10 @@ func (r *UserRepository) GetByID(ctx context.Context, id domain.UserID) (*domain
 	var u domain.User
 	err := r.db.QueryRowContext(ctx, query, string(id)).Scan(&u.ID, &u.DisplayName, &u.PasswordHash, &u.IsActive)
 	if err != nil {
-		return nil, fmt.Errorf("user not found: %w", err)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, domain.ErrUserNotFound
+		}
+		return nil, fmt.Errorf("get user: %w", err)
 	}
 	return &u, nil
 }

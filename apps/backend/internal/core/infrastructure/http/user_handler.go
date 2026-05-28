@@ -74,6 +74,22 @@ func (h *APIHandler) ListFriends(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GET /users/me
+func (h *APIHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
+	userID, err := getAuthUserID(r)
+	if err != nil {
+		http.Error(w, domain.ErrUnauthorized.Error(), http.StatusUnauthorized)
+		return
+	}
+	user, err := h.userService.GetUser(r.Context(), userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(user)
+}
+
 // GET /users
 func (h *APIHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := h.userService.ListUsers(r.Context())
