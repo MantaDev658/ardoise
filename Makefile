@@ -106,7 +106,7 @@ frontend-e2e:
 
 db-up:
 	@echo "Starting PostgreSQL..."
-	docker compose up -d
+	docker-compose up -d
 	@echo "Waiting for database to be ready..."
 	sleep 2
 

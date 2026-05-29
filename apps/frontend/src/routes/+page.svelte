@@ -100,7 +100,7 @@
 {:else}
 	{#if !groups?.length && !expenses?.length}
 		<!-- Getting started — no data yet -->
-		<Window title="WELCOME TO Ardoise">
+		<Window title="WELCOME TO ARDOISE">
 			<div class="font-system text-sm flex flex-col gap-3">
 				<p class="font-bold">You're all set up! Here's how to get started:</p>
 				<ol class="list-decimal list-inside flex flex-col gap-2 text-win-dark">
