@@ -108,6 +108,12 @@ func (h *APIHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 func (h *APIHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
 
+	callerID, err := getAuthUserID(r)
+	if err != nil || callerID != userID {
+		http.Error(w, domain.ErrUnauthorized.Error(), http.StatusForbidden)
+		return
+	}
+
 	cmd, err := decodeJSON[struct {
 		DisplayName string `json:"display_name"`
 	}](w, r)
@@ -125,6 +131,13 @@ func (h *APIHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 // DELETE /users/{id}
 func (h *APIHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
+
+	callerID, err := getAuthUserID(r)
+	if err != nil || callerID != userID {
+		http.Error(w, domain.ErrUnauthorized.Error(), http.StatusForbidden)
+		return
+	}
+
 	if err := h.userService.DeleteUser(r.Context(), userID); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

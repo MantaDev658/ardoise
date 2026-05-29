@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { APIError } from '$lib/api/client';
 	import { listGroups } from '$lib/api/groups';
@@ -67,9 +68,11 @@
 				...(groupID ? { group_id: groupID } : {})
 			});
 			toastStore.success('Settlement recorded!');
+			const dest = groupID ? `/groups/${groupID}` : '/';
 			receiverID = '';
 			amountDollars = '';
 			groupID = '';
+			goto(dest);
 		} catch (err) {
 			toastStore.error(err instanceof APIError ? err.message : 'Failed to record settlement.');
 		} finally {

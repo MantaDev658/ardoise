@@ -45,22 +45,49 @@ func TestAPIHandler_Users(t *testing.T) {
 		body := []byte(`{"display_name": "Alice Updated"}`)
 		req := httptest.NewRequest("PUT", "/users/Alice", bytes.NewBuffer(body))
 		req.SetPathValue("id", "Alice")
+		ctx := context.WithValue(req.Context(), UserIDKey, "Alice")
 		rr := httptest.NewRecorder()
 
-		handler.UpdateUser(rr, req)
+		handler.UpdateUser(rr, req.WithContext(ctx))
 		if rr.Code != http.StatusOK {
 			t.Errorf("expected 200, got %d", rr.Code)
+		}
+	})
+
+	t.Run("PUT /users/{id} returns 403 when caller is not the target", func(t *testing.T) {
+		body := []byte(`{"display_name": "Hacked"}`)
+		req := httptest.NewRequest("PUT", "/users/Alice", bytes.NewBuffer(body))
+		req.SetPathValue("id", "Alice")
+		ctx := context.WithValue(req.Context(), UserIDKey, "Bob")
+		rr := httptest.NewRecorder()
+
+		handler.UpdateUser(rr, req.WithContext(ctx))
+		if rr.Code != http.StatusForbidden {
+			t.Errorf("expected 403, got %d", rr.Code)
 		}
 	})
 
 	t.Run("DELETE /users/{id} soft deletes", func(t *testing.T) {
 		req := httptest.NewRequest("DELETE", "/users/Alice", nil)
 		req.SetPathValue("id", "Alice")
+		ctx := context.WithValue(req.Context(), UserIDKey, "Alice")
 		rr := httptest.NewRecorder()
 
-		handler.DeleteUser(rr, req)
+		handler.DeleteUser(rr, req.WithContext(ctx))
 		if rr.Code != http.StatusOK {
 			t.Errorf("expected 200, got %d", rr.Code)
+		}
+	})
+
+	t.Run("DELETE /users/{id} returns 403 when caller is not the target", func(t *testing.T) {
+		req := httptest.NewRequest("DELETE", "/users/Alice", nil)
+		req.SetPathValue("id", "Alice")
+		ctx := context.WithValue(req.Context(), UserIDKey, "Bob")
+		rr := httptest.NewRecorder()
+
+		handler.DeleteUser(rr, req.WithContext(ctx))
+		if rr.Code != http.StatusForbidden {
+			t.Errorf("expected 403, got %d", rr.Code)
 		}
 	})
 }
