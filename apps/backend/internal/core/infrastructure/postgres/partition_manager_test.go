@@ -28,6 +28,28 @@ func TestManagePartitions_CreatesNextMonthPartition(t *testing.T) {
 	}
 }
 
+func TestManagePartitions_CreatesCurrentMonthPartition(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Simulate running mid-month. The manager must ensure the current month's
+	// partition exists, even if a previous run missed it.
+	now := time.Date(2025, time.November, 15, 0, 0, 0, 0, time.UTC)
+	managePartitions(db, 6, now)
+
+	var exists bool
+	err := db.QueryRow(
+		"SELECT EXISTS (SELECT 1 FROM pg_tables WHERE tablename = $1)",
+		"audit_logs_y2025m11",
+	).Scan(&exists)
+	if err != nil {
+		t.Fatalf("failed to query pg_tables: %v", err)
+	}
+	if !exists {
+		t.Error("expected current-month partition audit_logs_y2025m11 to be created, but it was not")
+	}
+}
+
 func TestManagePartitions_DropsExpiredPartition(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()

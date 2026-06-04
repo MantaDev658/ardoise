@@ -1,4 +1,4 @@
-package http
+package handlers
 
 import (
 	"encoding/json"
@@ -20,7 +20,7 @@ func (h *APIHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.userService.RegisterUser(r.Context(), cmd.ID, cmd.DisplayName, cmd.Password); err != nil {
-		if errors.Is(err, domain.ErrUserAlreadyExists) {
+		if errors.Is(err, domain.ErrUserAlreadyExists) || errors.Is(err, domain.ErrDisplayNameTaken) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusConflict)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
@@ -122,6 +122,12 @@ func (h *APIHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.userService.UpdateUser(r.Context(), userID, cmd.DisplayName); err != nil {
+		if errors.Is(err, domain.ErrDisplayNameTaken) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			return
+		}
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}

@@ -14,7 +14,8 @@ import (
 
 	"ardoise/apps/backend/internal/core/application"
 	hmacauth "ardoise/apps/backend/internal/core/infrastructure/auth/hmac"
-	openhttp "ardoise/apps/backend/internal/core/infrastructure/http"
+	"ardoise/apps/backend/internal/core/infrastructure/http/handlers"
+	"ardoise/apps/backend/internal/core/infrastructure/http/middleware"
 	"ardoise/apps/backend/internal/core/infrastructure/postgres"
 
 	"github.com/joho/godotenv"
@@ -72,17 +73,26 @@ func run() error {
 	rawDB.SetMaxIdleConns(5)
 	rawDB.SetConnMaxLifetime(5 * time.Minute)
 
+	if err := postgres.RunMigrations(rawDB); err != nil {
+		return fmt.Errorf("migrations failed: %w", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	postgres.StartPartitionManager(ctx, rawDB, 12)
+
 	db := postgres.NewDB(rawDB)
 	auditRepo := postgres.NewAuditRepository(rawDB)
 	userRepo := postgres.NewUserRepository(rawDB)
 	groupRepo := postgres.NewGroupRepository(rawDB)
 	expenseRepo := postgres.NewExpenseRepository(rawDB)
+	invitationRepo := postgres.NewInvitationRepository(rawDB)
 
 	userService := application.NewUserService(userRepo, []byte(cfg.jwtSecret))
-	groupService := application.NewGroupService(groupRepo, expenseRepo, auditRepo, db)
+	groupService := application.NewGroupService(groupRepo, expenseRepo, auditRepo, invitationRepo, userRepo, db)
 	expenseService := application.NewExpenseService(expenseRepo, groupRepo, auditRepo, db)
 
-	h := openhttp.NewAPIHandler(expenseService, userService, groupService)
+	h := handlers.NewAPIHandler(expenseService, userService, groupService)
 
 	protected := http.NewServeMux()
 	protected.HandleFunc("POST /expenses", h.CreateExpense)
@@ -108,19 +118,26 @@ func run() error {
 	protected.HandleFunc("DELETE /groups/{id}/members/{user_id}", h.RemoveGroupMember)
 	protected.HandleFunc("GET /groups/{id}/activity", h.GetGroupActivity)
 
+	protected.HandleFunc("GET /invitations", h.ListMyInvitations)
+	protected.HandleFunc("POST /invitations/{id}/accept", h.AcceptInvitation)
+	protected.HandleFunc("POST /invitations/{id}/decline", h.DeclineInvitation)
+
 	auth := hmacauth.New([]byte(cfg.jwtSecret))
+	authLimiter := middleware.NewRateLimiter(10, time.Minute)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"status":"ok"}`)
 	})
-	mux.HandleFunc("POST /auth/register", h.RegisterUser)
-	mux.HandleFunc("POST /auth/login", h.LoginUser)
-	mux.Handle("/", openhttp.AuthMiddleware(auth)(protected))
+	mux.Handle("POST /auth/register", authLimiter.Middleware(http.HandlerFunc(h.RegisterUser)))
+	mux.Handle("POST /auth/login", authLimiter.Middleware(http.HandlerFunc(h.LoginUser)))
+	mux.Handle("/", middleware.AuthMiddleware(auth)(protected))
 
-	handler := openhttp.CORSMiddleware(cfg.corsOrigin)(
-		http.TimeoutHandler(mux, 10*time.Second, `{"error":"request timeout"}`),
+	handler := middleware.SecurityHeaders(
+		middleware.CORSMiddleware(cfg.corsOrigin)(
+			http.TimeoutHandler(mux, 10*time.Second, `{"error":"request timeout"}`),
+		),
 	)
 
 	server := &http.Server{
@@ -148,10 +165,10 @@ func run() error {
 		log.Println("Shutting down gracefully...")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
 
-	if err := server.Shutdown(ctx); err != nil {
+	if err := server.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("forced shutdown: %w", err)
 	}
 

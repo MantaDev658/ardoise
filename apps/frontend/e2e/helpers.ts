@@ -95,15 +95,30 @@ export async function createGroupViaApi(
 	return data.group_id;
 }
 
+// addGroupMemberViaApi invites the user to the group and immediately accepts on
+// their behalf, so callers can treat the user as a full member right away.
 export async function addGroupMemberViaApi(
-	token: string,
+	ownerToken: string,
 	groupID: string,
-	userID: string,
+	member: TestUser,
 ): Promise<void> {
-	const res = await fetch(`http://localhost:8080/groups/${groupID}/members`, {
+	const inviteRes = await fetch(`http://localhost:8080/groups/${groupID}/members`, {
 		method: 'POST',
-		headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-		body: JSON.stringify({ user_id: userID }),
+		headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ownerToken}` },
+		body: JSON.stringify({ user_id: member.id }),
 	});
-	if (!res.ok) throw new Error(`addGroupMemberViaApi failed: ${res.status} ${await res.text()}`);
+	if (!inviteRes.ok) throw new Error(`addGroupMemberViaApi (invite) failed: ${inviteRes.status} ${await inviteRes.text()}`);
+
+	const memberToken = await loginViaApi(member);
+	const listRes = await fetch('http://localhost:8080/invitations', {
+		headers: { Authorization: `Bearer ${memberToken}` },
+	});
+	if (!listRes.ok) throw new Error(`addGroupMemberViaApi (list) failed: ${listRes.status} ${await listRes.text()}`);
+	const invitations = await listRes.json() as Array<{ ID: string }>;
+	for (const inv of invitations) {
+		await fetch(`http://localhost:8080/invitations/${inv.ID}/accept`, {
+			method: 'POST',
+			headers: { Authorization: `Bearer ${memberToken}` },
+		});
+	}
 }

@@ -40,6 +40,9 @@ const (
 	AuditActionRenamedGroup   AuditAction = "RENAMED_GROUP"
 	AuditActionDeletedGroup   AuditAction = "DELETED_GROUP"
 	AuditActionRemovedMember  AuditAction = "REMOVED_GROUP_MEMBER"
+	AuditActionInvitedMember  AuditAction = "INVITED_MEMBER"
+	AuditActionAcceptedInvite AuditAction = "ACCEPTED_INVITE"
+	AuditActionDeclinedInvite AuditAction = "DECLINED_INVITE"
 )
 
 // AuditLog is an immutable record of a mutation within a group.
@@ -59,6 +62,18 @@ type User struct {
 	DisplayName  string
 	IsActive     bool
 	PasswordHash string
+}
+
+// Invitation is a pending request for a user to join a group.
+// It is deleted (not updated) when the invitee accepts or declines,
+// which allows the same user to be re-invited after declining.
+type Invitation struct {
+	ID        string
+	GroupID   GroupID
+	GroupName string // populated by the repo join; not stored in the invitations table
+	InviterID UserID
+	InviteeID UserID
+	CreatedAt time.Time
 }
 
 type AuditRepository interface {
@@ -84,6 +99,13 @@ type GroupRepository interface {
 	Delete(ctx context.Context, id GroupID) error
 	RemoveMember(ctx context.Context, id GroupID, userID UserID) error
 	LockGroup(ctx context.Context, id GroupID) error
+}
+
+type InvitationRepository interface {
+	Save(ctx context.Context, inv Invitation) error
+	GetByID(ctx context.Context, id string) (Invitation, error)
+	GetPendingForUser(ctx context.Context, userID UserID) ([]Invitation, error)
+	Delete(ctx context.Context, id string) error
 }
 
 type ExpenseRepository interface {

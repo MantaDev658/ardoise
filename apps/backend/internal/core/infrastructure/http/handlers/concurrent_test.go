@@ -1,4 +1,4 @@
-package http
+package handlers
 
 import (
 	"fmt"
@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	hmacauth "ardoise/apps/backend/internal/core/infrastructure/auth/hmac"
+	"ardoise/apps/backend/internal/core/infrastructure/http/middleware"
 	"ardoise/apps/backend/internal/core/mocks"
 	sharedjwt "ardoise/libs/shared/jwt"
 )
@@ -32,7 +33,7 @@ func makeConcurrentTestServer(t *testing.T) (server *httptest.Server, bearerToke
 	protected.HandleFunc("GET /groups", h.ListGroups)
 
 	mux := http.NewServeMux()
-	mux.Handle("/", AuthMiddleware(hmacauth.New([]byte(secret)))(protected))
+	mux.Handle("/", middleware.AuthMiddleware(hmacauth.New([]byte(secret)))(protected))
 
 	tok, err := sharedjwt.Sign("Alice", []byte(secret))
 	if err != nil {

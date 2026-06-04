@@ -1,4 +1,4 @@
-package http
+package handlers
 
 import (
 	"ardoise/apps/backend/internal/core/application"
@@ -9,6 +9,6 @@ func newTestServices(eRepo *mocks.MockExpenseRepo, uRepo *mocks.MockUserRepo, gR
 	tx := &mocks.MockTransactor{}
 	es := application.NewExpenseService(eRepo, gRepo, aRepo, tx)
 	us := application.NewUserService(uRepo, []byte("test-secret"))
-	gs := application.NewGroupService(gRepo, eRepo, aRepo, tx)
+	gs := application.NewGroupService(gRepo, eRepo, aRepo, &mocks.MockInvitationRepo{}, uRepo, tx)
 	return es, us, gs
 }

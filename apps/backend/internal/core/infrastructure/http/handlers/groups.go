@@ -1,4 +1,4 @@
-package http
+package handlers
 
 import (
 	"encoding/json"
@@ -51,17 +51,23 @@ func (h *APIHandler) AddGroupMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.groupService.AddMemberToGroup(r.Context(), groupID, cmd.UserID, authUserID); err != nil {
-		if errors.Is(err, domain.ErrUserAlreadyInGroup) {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+	if err := h.groupService.InviteUserToGroup(r.Context(), groupID, cmd.UserID, authUserID); err != nil {
+		switch {
+		case errors.Is(err, domain.ErrUnauthorized):
+			http.Error(w, err.Error(), http.StatusForbidden)
+		case errors.Is(err, domain.ErrUserAlreadyInGroup), errors.Is(err, domain.ErrAlreadyInvited):
+			http.Error(w, err.Error(), http.StatusConflict)
+		case errors.Is(err, domain.ErrUserNotFound):
+			http.Error(w, err.Error(), http.StatusNotFound)
+		default:
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(`{"status": "member added"}`))
+	_, _ = w.Write([]byte(`{"status": "invitation sent"}`))
 }
 
 // GET /groups — returns groups for the authenticated user

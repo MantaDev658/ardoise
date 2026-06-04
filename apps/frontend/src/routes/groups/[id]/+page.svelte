@@ -132,12 +132,10 @@
 		addingMember = true;
 		try {
 			await addGroupMember(groupID, trimmed);
-			toastStore.success('Member added.');
+			toastStore.success(`Invitation sent to ${trimmed}.`);
 			addMemberSearch = '';
-			const groups = await listGroups();
-			group = groups.find((g) => g.ID === groupID) ?? null;
 		} catch (err) {
-			toastStore.error(err instanceof APIError ? err.message : 'Failed to add member.');
+			toastStore.error(err instanceof APIError ? err.message : 'Failed to send invitation.');
 		} finally {
 			addingMember = false;
 		}

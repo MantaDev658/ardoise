@@ -1,4 +1,4 @@
-package http
+package handlers
 
 import (
 	"bytes"
@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"ardoise/apps/backend/internal/core/domain"
+	"ardoise/apps/backend/internal/core/infrastructure/http/middleware"
 	"ardoise/apps/backend/internal/core/mocks"
 
 	"golang.org/x/crypto/bcrypt"
@@ -52,7 +53,7 @@ func TestAPIHandler_Groups(t *testing.T) {
 	t.Run("POST /groups creates a group using JWT identity as creator", func(t *testing.T) {
 		body, _ := json.Marshal(map[string]string{"name": "Ski Trip 2026"})
 		req := httptest.NewRequest("POST", "/groups", bytes.NewBuffer(body))
-		ctx := context.WithValue(req.Context(), UserIDKey, "Alice")
+		ctx := context.WithValue(req.Context(), middleware.UserIDKey, "Alice")
 		req = req.WithContext(ctx)
 
 		rr := httptest.NewRecorder()
@@ -67,7 +68,7 @@ func TestAPIHandler_Groups(t *testing.T) {
 		body := []byte(`{"user_id": "Bob"}`)
 		req := httptest.NewRequest("POST", "/groups/g1/members", bytes.NewBuffer(body))
 		req.SetPathValue("id", "g1")
-		ctx := context.WithValue(req.Context(), UserIDKey, "Alice")
+		ctx := context.WithValue(req.Context(), middleware.UserIDKey, "Alice")
 		req = req.WithContext(ctx)
 
 		rr := httptest.NewRecorder()
@@ -80,7 +81,7 @@ func TestAPIHandler_Groups(t *testing.T) {
 
 	t.Run("GET /groups returns list for authenticated user", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/groups", nil)
-		ctx := context.WithValue(req.Context(), UserIDKey, "Alice")
+		ctx := context.WithValue(req.Context(), middleware.UserIDKey, "Alice")
 		req = req.WithContext(ctx)
 		rr := httptest.NewRecorder()
 
@@ -109,7 +110,7 @@ func TestAPIHandler_Groups(t *testing.T) {
 		body := []byte(`{"name": "New Trip Name"}`)
 		req := httptest.NewRequest("PUT", "/groups/g1", bytes.NewBuffer(body))
 		req.SetPathValue("id", "g1")
-		ctx := context.WithValue(req.Context(), UserIDKey, "Alice")
+		ctx := context.WithValue(req.Context(), middleware.UserIDKey, "Alice")
 		req = req.WithContext(ctx)
 
 		rr := httptest.NewRecorder()
@@ -122,7 +123,7 @@ func TestAPIHandler_Groups(t *testing.T) {
 	t.Run("DELETE /groups/{id} deletes group", func(t *testing.T) {
 		req := httptest.NewRequest("DELETE", "/groups/g1", nil)
 		req.SetPathValue("id", "g1")
-		ctx := context.WithValue(req.Context(), UserIDKey, "Alice")
+		ctx := context.WithValue(req.Context(), middleware.UserIDKey, "Alice")
 		req = req.WithContext(ctx)
 
 		rr := httptest.NewRecorder()
@@ -136,7 +137,7 @@ func TestAPIHandler_Groups(t *testing.T) {
 		req := httptest.NewRequest("DELETE", "/groups/g1/members/Bob", nil)
 		req.SetPathValue("id", "g1")
 		req.SetPathValue("user_id", "Bob")
-		ctx := context.WithValue(req.Context(), UserIDKey, "Alice")
+		ctx := context.WithValue(req.Context(), middleware.UserIDKey, "Alice")
 		req = req.WithContext(ctx)
 
 		rr := httptest.NewRecorder()

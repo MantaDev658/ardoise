@@ -75,6 +75,16 @@ export interface CreateGroupResponse {
 	group_id: string;
 }
 
+// Matches backend domain.Invitation (no json tags)
+export interface Invitation {
+	ID: string;
+	GroupID: string;
+	GroupName: string;
+	InviterID: string;
+	InviteeID: string;
+	CreatedAt: string;
+}
+
 export type SplitType = 'EQUAL' | 'EXACT' | 'PERCENTAGE' | 'SHARES';
 
 export interface SplitInput {

@@ -34,10 +34,17 @@ var (
 var (
 	ErrUserNotFound       = errors.New("user not found or inactive")
 	ErrUserAlreadyExists  = errors.New("username already taken")
+	ErrDisplayNameTaken   = errors.New("display name already taken")
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrEmptyDisplayName   = errors.New("display name cannot be empty")
 	ErrUnauthorized       = errors.New("unauthorized: missing or invalid identity")
 	ErrPasswordTooShort   = errors.New("password must be at least 8 characters")
 	ErrPasswordTooLong    = errors.New("password must not exceed 72 bytes")
 	ErrSamePassword       = errors.New("new password must differ from the current password")
+)
+
+// --- Invitation Errors ---
+var (
+	ErrInvitationNotFound = errors.New("invitation not found")
+	ErrAlreadyInvited     = errors.New("user already has a pending invitation to this group")
 )

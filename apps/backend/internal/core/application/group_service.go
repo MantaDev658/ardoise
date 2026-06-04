@@ -10,18 +10,29 @@ import (
 )
 
 type GroupService struct {
-	groupRepo   domain.GroupRepository
-	expenseRepo domain.ExpenseRepository
-	auditRepo   domain.AuditRepository
-	transactor  domain.Transactor
+	groupRepo      domain.GroupRepository
+	expenseRepo    domain.ExpenseRepository
+	auditRepo      domain.AuditRepository
+	invitationRepo domain.InvitationRepository
+	userRepo       domain.UserRepository
+	transactor     domain.Transactor
 }
 
-func NewGroupService(groupRepo domain.GroupRepository, expenseRepo domain.ExpenseRepository, auditRepo domain.AuditRepository, tx domain.Transactor) *GroupService {
+func NewGroupService(
+	groupRepo domain.GroupRepository,
+	expenseRepo domain.ExpenseRepository,
+	auditRepo domain.AuditRepository,
+	invitationRepo domain.InvitationRepository,
+	userRepo domain.UserRepository,
+	tx domain.Transactor,
+) *GroupService {
 	return &GroupService{
-		groupRepo:   groupRepo,
-		expenseRepo: expenseRepo,
-		auditRepo:   auditRepo,
-		transactor:  tx,
+		groupRepo:      groupRepo,
+		expenseRepo:    expenseRepo,
+		auditRepo:      auditRepo,
+		invitationRepo: invitationRepo,
+		userRepo:       userRepo,
+		transactor:     tx,
 	}
 }
 
@@ -66,31 +77,87 @@ func (s *GroupService) ListGroupsForUser(ctx context.Context, userID string) ([]
 	return s.groupRepo.ListForUser(ctx, domain.UserID(userID))
 }
 
-func (s *GroupService) AddMemberToGroup(ctx context.Context, groupID string, userID string, actorID string) error {
+// InviteUserToGroup creates a pending invitation for inviteeID to join groupID.
+// The actor must be an existing group member. Accepts happen via AcceptInvitation.
+func (s *GroupService) InviteUserToGroup(ctx context.Context, groupID, inviteeID, actorID string) error {
 	gID := domain.GroupID(groupID)
-	uID := domain.UserID(userID)
+	uID := domain.UserID(inviteeID)
 
 	group, err := s.groupRepo.GetByID(ctx, gID)
 	if err != nil {
 		return fmt.Errorf("failed to fetch group: %w", err)
 	}
+	if !group.HasMember(domain.UserID(actorID)) {
+		return domain.ErrUnauthorized
+	}
+	if group.HasMember(uID) {
+		return domain.ErrUserAlreadyInGroup
+	}
 
-	if err := group.AddMember(uID); err != nil {
+	invitee, err := s.userRepo.GetByID(ctx, uID)
+	if err != nil || !invitee.IsActive {
+		return domain.ErrUserNotFound
+	}
+
+	inv := domain.Invitation{
+		ID:        uuid.NewString(),
+		GroupID:   gID,
+		InviterID: domain.UserID(actorID),
+		InviteeID: uID,
+	}
+	return s.invitationRepo.Save(ctx, inv)
+}
+
+// AcceptInvitation adds the invitee to the group and deletes the invitation atomically.
+func (s *GroupService) AcceptInvitation(ctx context.Context, invitationID, actorID string) error {
+	inv, err := s.invitationRepo.GetByID(ctx, invitationID)
+	if err != nil {
+		return err
+	}
+	if string(inv.InviteeID) != actorID {
+		return domain.ErrUnauthorized
+	}
+
+	group, err := s.groupRepo.GetByID(ctx, inv.GroupID)
+	if err != nil {
+		return fmt.Errorf("failed to fetch group: %w", err)
+	}
+	if err := group.AddMember(inv.InviteeID); err != nil {
 		return err
 	}
 
 	return s.transactor.RunInTx(ctx, func(txCtx context.Context) error {
 		if err := s.groupRepo.Save(txCtx, group); err != nil {
-			return fmt.Errorf("failed to save group member: %w", err)
+			return fmt.Errorf("failed to save group: %w", err)
+		}
+		if err := s.invitationRepo.Delete(txCtx, invitationID); err != nil {
+			return fmt.Errorf("failed to delete invitation: %w", err)
 		}
 		return s.auditRepo.Save(txCtx, domain.AuditLog{
 			ID:       uuid.NewString(),
-			GroupID:  groupID,
+			GroupID:  string(inv.GroupID),
 			UserID:   actorID,
-			Action:   domain.AuditActionAddedMember,
-			TargetID: userID,
+			Action:   domain.AuditActionAcceptedInvite,
+			TargetID: string(inv.GroupID),
 		})
 	})
+}
+
+// DeclineInvitation deletes the pending invitation. The invitee may be re-invited later.
+func (s *GroupService) DeclineInvitation(ctx context.Context, invitationID, actorID string) error {
+	inv, err := s.invitationRepo.GetByID(ctx, invitationID)
+	if err != nil {
+		return err
+	}
+	if string(inv.InviteeID) != actorID {
+		return domain.ErrUnauthorized
+	}
+	return s.invitationRepo.Delete(ctx, invitationID)
+}
+
+// GetMyInvitations returns all pending invitations for the given user.
+func (s *GroupService) GetMyInvitations(ctx context.Context, userID string) ([]domain.Invitation, error) {
+	return s.invitationRepo.GetPendingForUser(ctx, domain.UserID(userID))
 }
 
 func (s *GroupService) UpdateGroup(ctx context.Context, groupID string, name string, actorID string) error {

@@ -5,8 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"ardoise/apps/backend/internal/core/domain"
+
+	"github.com/lib/pq"
 )
 
 type UserRepository struct {
@@ -17,6 +20,18 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
+// mapUserUniqueErr converts a postgres unique_violation (23505) on the users
+// table into the appropriate domain sentinel error.
+func mapUserUniqueErr(err error) error {
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+		if strings.Contains(pqErr.Constraint, "display_name") {
+			return domain.ErrDisplayNameTaken
+		}
+	}
+	return err
+}
+
 func (r *UserRepository) Save(ctx context.Context, user domain.User) error {
 	query := `
 		INSERT INTO users (id, display_name, password_hash)
@@ -25,7 +40,7 @@ func (r *UserRepository) Save(ctx context.Context, user domain.User) error {
 	`
 	res, err := r.db.ExecContext(ctx, query, string(user.ID), user.DisplayName, user.PasswordHash)
 	if err != nil {
-		return err
+		return mapUserUniqueErr(err)
 	}
 	rows, _ := res.RowsAffected()
 	if rows == 0 {
@@ -74,7 +89,7 @@ func (r *UserRepository) ListAll(ctx context.Context) ([]domain.User, error) {
 func (r *UserRepository) Update(ctx context.Context, id domain.UserID, newName string) error {
 	res, err := r.db.ExecContext(ctx, "UPDATE users SET display_name = $1 WHERE id = $2 AND is_active = TRUE", newName, string(id))
 	if err != nil {
-		return fmt.Errorf("failed to update user: %w", err)
+		return mapUserUniqueErr(err)
 	}
 	rowsAffected, _ := res.RowsAffected()
 	if rowsAffected == 0 {

@@ -1,7 +1,8 @@
-package http
+package handlers
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 
 	"ardoise/apps/backend/internal/core/application"
 	hmacauth "ardoise/apps/backend/internal/core/infrastructure/auth/hmac"
+	"ardoise/apps/backend/internal/core/infrastructure/http/middleware"
 	"ardoise/apps/backend/internal/core/infrastructure/postgres"
 )
 
@@ -31,10 +33,19 @@ func setupIntegrationServer(t *testing.T) *httptest.Server {
 		t.Fatalf("failed to connect to test DB: %v", err)
 	}
 
+	if err := postgres.RunMigrations(rawDB); err != nil {
+		t.Fatalf("run migrations: %v", err)
+	}
+
+	partCtx, partCancel := context.WithCancel(context.Background())
+	t.Cleanup(partCancel)
+	postgres.StartPartitionManager(partCtx, rawDB, 12)
+
 	for _, stmt := range []string{
 		"DELETE FROM splits",
 		"DELETE FROM audit_logs",
 		"DELETE FROM expenses",
+		"DELETE FROM group_invitations",
 		"DELETE FROM group_members",
 		"DELETE FROM groups",
 		"DELETE FROM users",
@@ -50,9 +61,10 @@ func setupIntegrationServer(t *testing.T) *httptest.Server {
 	groupRepo := postgres.NewGroupRepository(rawDB)
 	expenseRepo := postgres.NewExpenseRepository(rawDB)
 	auditRepo := postgres.NewAuditRepository(rawDB)
+	invitationRepo := postgres.NewInvitationRepository(rawDB)
 
 	userSvc := application.NewUserService(userRepo, secret)
-	groupSvc := application.NewGroupService(groupRepo, expenseRepo, auditRepo, db)
+	groupSvc := application.NewGroupService(groupRepo, expenseRepo, auditRepo, invitationRepo, userRepo, db)
 	expenseSvc := application.NewExpenseService(expenseRepo, groupRepo, auditRepo, db)
 
 	h := NewAPIHandler(expenseSvc, userSvc, groupSvc)
@@ -66,11 +78,13 @@ func setupIntegrationServer(t *testing.T) *httptest.Server {
 	protected.HandleFunc("POST /groups/{id}/members", h.AddGroupMember)
 	protected.HandleFunc("POST /expenses", h.CreateExpense)
 	protected.HandleFunc("GET /balances", h.GetBalances)
+	protected.HandleFunc("GET /invitations", h.ListMyInvitations)
+	protected.HandleFunc("POST /invitations/{id}/accept", h.AcceptInvitation)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /auth/register", h.RegisterUser)
 	mux.HandleFunc("POST /auth/login", h.LoginUser)
-	mux.Handle("/", AuthMiddleware(auth)(protected))
+	mux.Handle("/", middleware.AuthMiddleware(auth)(protected))
 
 	srv := httptest.NewServer(mux)
 	t.Cleanup(func() {
@@ -153,8 +167,8 @@ func TestIntegration_RegisterLoginAndMe(t *testing.T) {
 	}
 }
 
-// TestIntegration_GroupAndExpenseFlow exercises the full create-group → add-member →
-// post-expense → get-balances path against a real database.
+// TestIntegration_GroupAndExpenseFlow exercises the full create-group → invite-member →
+// accept-invite → post-expense → get-balances path against a real database.
 func TestIntegration_GroupAndExpenseFlow(t *testing.T) {
 	srv := setupIntegrationServer(t)
 
@@ -178,7 +192,7 @@ func TestIntegration_GroupAndExpenseFlow(t *testing.T) {
 	}
 
 	aliceTok := register("alice2", "Alice")
-	register("bob2", "Bob")
+	bobTok := register("bob2", "Bob")
 
 	// Create group as Alice
 	resp := doJSON(t, srv.Client(), "POST", srv.URL+"/groups", map[string]string{"name": "Trip"}, aliceTok)
@@ -194,16 +208,38 @@ func TestIntegration_GroupAndExpenseFlow(t *testing.T) {
 		t.Fatal("expected group_id in response")
 	}
 
-	// Add Bob to group
+	// Alice invites Bob — creates a pending invitation
 	resp = doJSON(t, srv.Client(), "POST",
 		fmt.Sprintf("%s/groups/%s/members", srv.URL, groupResp.GroupID),
 		map[string]string{"user_id": "bob2"}, aliceTok)
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("add member: expected 200, got %d", resp.StatusCode)
+		t.Fatalf("invite member: expected 200, got %d", resp.StatusCode)
 	}
 
-	// Alice posts EVEN expense
+	// Bob lists invitations and accepts
+	resp = doJSON(t, srv.Client(), "GET", srv.URL+"/invitations", nil, bobTok)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("list invitations: expected 200, got %d", resp.StatusCode)
+	}
+	var invitations []struct {
+		ID string `json:"ID"`
+	}
+	json.NewDecoder(resp.Body).Decode(&invitations) //nolint:errcheck
+	resp.Body.Close()
+	if len(invitations) == 0 {
+		t.Fatal("expected at least one pending invitation for Bob")
+	}
+
+	resp = doJSON(t, srv.Client(), "POST",
+		fmt.Sprintf("%s/invitations/%s/accept", srv.URL, invitations[0].ID),
+		nil, bobTok)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("accept invitation: expected 200, got %d", resp.StatusCode)
+	}
+
+	// Alice posts EVEN expense — bob is now a member so this should succeed
 	resp = doJSON(t, srv.Client(), "POST", srv.URL+"/expenses", map[string]any{
 		"group_id":    groupResp.GroupID,
 		"description": "dinner",

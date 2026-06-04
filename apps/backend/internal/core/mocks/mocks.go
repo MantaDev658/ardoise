@@ -161,6 +161,41 @@ func (m *MockUserRepo) SoftDelete(ctx context.Context, user domain.UserID) error
 	return nil
 }
 
+type MockInvitationRepo struct {
+	SaveFunc              func(ctx context.Context, inv domain.Invitation) error
+	GetByIDFunc           func(ctx context.Context, id string) (domain.Invitation, error)
+	GetPendingForUserFunc func(ctx context.Context, userID domain.UserID) ([]domain.Invitation, error)
+	DeleteFunc            func(ctx context.Context, id string) error
+}
+
+func (m *MockInvitationRepo) Save(ctx context.Context, inv domain.Invitation) error {
+	if m.SaveFunc != nil {
+		return m.SaveFunc(ctx, inv)
+	}
+	return nil
+}
+
+func (m *MockInvitationRepo) GetByID(ctx context.Context, id string) (domain.Invitation, error) {
+	if m.GetByIDFunc != nil {
+		return m.GetByIDFunc(ctx, id)
+	}
+	return domain.Invitation{}, domain.ErrInvitationNotFound
+}
+
+func (m *MockInvitationRepo) GetPendingForUser(ctx context.Context, userID domain.UserID) ([]domain.Invitation, error) {
+	if m.GetPendingForUserFunc != nil {
+		return m.GetPendingForUserFunc(ctx, userID)
+	}
+	return []domain.Invitation{}, nil
+}
+
+func (m *MockInvitationRepo) Delete(ctx context.Context, id string) error {
+	if m.DeleteFunc != nil {
+		return m.DeleteFunc(ctx, id)
+	}
+	return nil
+}
+
 type MockGroupRepo struct {
 	SaveFunc         func(ctx context.Context, group *domain.Group) error
 	GetByIDFunc      func(ctx context.Context, id domain.GroupID) (*domain.Group, error)

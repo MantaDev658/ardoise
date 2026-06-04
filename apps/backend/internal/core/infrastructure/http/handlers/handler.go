@@ -1,4 +1,4 @@
-package http
+package handlers
 
 import (
 	"encoding/json"
@@ -10,14 +10,17 @@ import (
 
 	"ardoise/apps/backend/internal/core/application"
 	"ardoise/apps/backend/internal/core/domain"
+	"ardoise/apps/backend/internal/core/infrastructure/http/middleware"
 )
 
+// APIHandler holds the application-layer services and is the receiver for all HTTP handler methods.
 type APIHandler struct {
 	expenseService *application.ExpenseService
 	userService    *application.UserService
 	groupService   *application.GroupService
 }
 
+// NewAPIHandler wires the services into an APIHandler.
 func NewAPIHandler(es *application.ExpenseService, us *application.UserService, gs *application.GroupService) *APIHandler {
 	return &APIHandler{
 		expenseService: es,
@@ -50,7 +53,7 @@ func validateAndDecode[T interface{ Validate() error }](w http.ResponseWriter, r
 }
 
 func getAuthUserID(r *http.Request) (string, error) {
-	id, ok := r.Context().Value(UserIDKey).(string)
+	id, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok || id == "" {
 		return "", domain.ErrUnauthorized
 	}

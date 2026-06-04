@@ -114,7 +114,7 @@ test('leave group with outstanding balance shows error', async ({ page }) => {
 	await register(page, user); // registers + logs in as user
 	const token = await loginViaApi(user);
 	const groupID = await createGroupViaApi(token, 'Balance Group');
-	await addGroupMemberViaApi(token, groupID, friend.id);
+	await addGroupMemberViaApi(token, groupID, friend);
 	// User pays $20 split equally with friend — user has +$10 outstanding balance
 	await createGroupExpenseViaApi(token, groupID, [user.id, friend.id], 2000);
 
@@ -152,9 +152,7 @@ test('add member via username search', async ({ page }) => {
 	await page.fill('[placeholder="Enter username…"]', newMember.id);
 	await page.getByRole('button', { name: '+ ADD' }).click();
 
-	await expect(page.getByRole('alert').getByText('Member added.')).toBeVisible();
-	// The new member should now appear in the member list
-	await expect(page.getByText(newMember.displayName)).toBeVisible();
+	await expect(page.getByRole('alert').getByText(`Invitation sent to ${newMember.id}.`)).toBeVisible();
 });
 
 test('balances tab shows net balances and suggested transfers', async ({ page }) => {
@@ -164,7 +162,7 @@ test('balances tab shows net balances and suggested transfers', async ({ page })
 	await register(page, user);
 	const token = await loginViaApi(user);
 	const groupID = await createGroupViaApi(token, 'Balance Tab Group');
-	await addGroupMemberViaApi(token, groupID, friend.id);
+	await addGroupMemberViaApi(token, groupID, friend);
 	// User pays $20, split equally — friend owes user $10
 	await createGroupExpenseViaApi(token, groupID, [user.id, friend.id], 2000);
 

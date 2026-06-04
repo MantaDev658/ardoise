@@ -1,4 +1,4 @@
-package http
+package middleware
 
 import (
 	"net/http"
@@ -14,7 +14,7 @@ import (
 
 func TestAuthMiddleware(t *testing.T) {
 	secret := []byte("test-secret")
-	middleware := AuthMiddleware(hmacauth.New(secret))
+	mw := AuthMiddleware(hmacauth.New(secret))
 
 	// panics if the user_id is not injected into the context correctly
 	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -28,7 +28,7 @@ func TestAuthMiddleware(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	handlerToTest := middleware(nextHandler)
+	handlerToTest := mw(nextHandler)
 
 	t.Run("Rejects missing Authorization header", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/", nil)

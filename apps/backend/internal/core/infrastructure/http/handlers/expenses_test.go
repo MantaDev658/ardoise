@@ -1,4 +1,4 @@
-package http
+package handlers
 
 import (
 	"bytes"
@@ -10,6 +10,7 @@ import (
 
 	"ardoise/apps/backend/internal/core/application"
 	"ardoise/apps/backend/internal/core/domain"
+	"ardoise/apps/backend/internal/core/infrastructure/http/middleware"
 	"ardoise/apps/backend/internal/core/mocks"
 	"ardoise/libs/shared/money"
 
@@ -45,7 +46,7 @@ func TestAPIHandler_GetBalances(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	req = req.WithContext(context.WithValue(req.Context(), UserIDKey, "Alice"))
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, "Alice"))
 
 	rr := httptest.NewRecorder()
 	handler.GetBalances(rr, req)
@@ -71,7 +72,7 @@ func TestAPIHandler_ExpensesGroupFiltering(t *testing.T) {
 
 	t.Run("GET /balances filters by group_id", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/balances?group_id=g1", nil)
-		req = req.WithContext(context.WithValue(req.Context(), UserIDKey, "Alice"))
+		req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, "Alice"))
 		rr := httptest.NewRecorder()
 
 		handler.GetBalances(rr, req)
@@ -124,7 +125,7 @@ func TestAPIHandler_Expenses(t *testing.T) {
 
 	t.Run("GET /expenses returns list", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/expenses", nil)
-		req = req.WithContext(context.WithValue(req.Context(), UserIDKey, "Alice"))
+		req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, "Alice"))
 		rr := httptest.NewRecorder()
 
 		handler.ListExpenses(rr, req)
@@ -155,7 +156,7 @@ func TestAPIHandler_Expenses(t *testing.T) {
 			Splits: []application.SplitDetail{{UserID: "Alice"}},
 		})
 		req := httptest.NewRequest("POST", "/expenses", bytes.NewBuffer(body))
-		ctx := context.WithValue(req.Context(), UserIDKey, "Alice")
+		ctx := context.WithValue(req.Context(), middleware.UserIDKey, "Alice")
 		req = req.WithContext(ctx)
 		rr := httptest.NewRecorder()
 
@@ -181,7 +182,7 @@ func TestAPIHandler_Expenses(t *testing.T) {
 
 		req := httptest.NewRequest("PUT", "/expenses/exp-123", bytes.NewBuffer(body))
 		req.SetPathValue("id", "exp-123")
-		ctx := context.WithValue(req.Context(), UserIDKey, "Alice")
+		ctx := context.WithValue(req.Context(), middleware.UserIDKey, "Alice")
 		req = req.WithContext(ctx)
 
 		rr := httptest.NewRecorder()
@@ -195,7 +196,7 @@ func TestAPIHandler_Expenses(t *testing.T) {
 	t.Run("DELETE /expenses/{id} successfully deletes", func(t *testing.T) {
 		req := httptest.NewRequest("DELETE", "/expenses/exp-123", nil)
 		req.SetPathValue("id", "exp-123")
-		ctx := context.WithValue(req.Context(), UserIDKey, "Alice")
+		ctx := context.WithValue(req.Context(), middleware.UserIDKey, "Alice")
 		req = req.WithContext(ctx)
 
 		rr := httptest.NewRecorder()
@@ -230,7 +231,7 @@ func TestAPIHandler_CreateSettlement(t *testing.T) {
 		}
 		body, _ := json.Marshal(cmd)
 		req := httptest.NewRequest("POST", "/settlements", bytes.NewBuffer(body))
-		ctx := context.WithValue(req.Context(), UserIDKey, "Alice")
+		ctx := context.WithValue(req.Context(), middleware.UserIDKey, "Alice")
 		req = req.WithContext(ctx)
 		rr := httptest.NewRecorder()
 
@@ -243,7 +244,7 @@ func TestAPIHandler_CreateSettlement(t *testing.T) {
 
 	t.Run("POST /settlements handles bad JSON", func(t *testing.T) {
 		req := httptest.NewRequest("POST", "/settlements", bytes.NewBufferString("{bad-json}"))
-		ctx := context.WithValue(req.Context(), UserIDKey, "Alice")
+		ctx := context.WithValue(req.Context(), middleware.UserIDKey, "Alice")
 		req = req.WithContext(ctx)
 		rr := httptest.NewRecorder()
 
@@ -277,7 +278,7 @@ func TestAPIHandler_GetFriendBalances(t *testing.T) {
 	t.Run("GET /friends/{user_id}/balances succeeds for auth user", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/friends/Alice/balances", nil)
 		req.SetPathValue("user_id", "Alice")
-		ctx := context.WithValue(req.Context(), UserIDKey, "Alice")
+		ctx := context.WithValue(req.Context(), middleware.UserIDKey, "Alice")
 		req = req.WithContext(ctx)
 		rr := httptest.NewRecorder()
 
@@ -296,7 +297,7 @@ func TestAPIHandler_GetFriendBalances(t *testing.T) {
 	t.Run("GET /friends/{user_id}/balances rejects mismatched user", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/friends/Bob/balances", nil)
 		req.SetPathValue("user_id", "Bob")
-		ctx := context.WithValue(req.Context(), UserIDKey, "Alice")
+		ctx := context.WithValue(req.Context(), middleware.UserIDKey, "Alice")
 		req = req.WithContext(ctx)
 		rr := httptest.NewRecorder()
 

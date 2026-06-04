@@ -3,19 +3,22 @@
 	import { getBalances, listExpenses } from '$lib/api/expenses';
 	import { listGroups } from '$lib/api/groups';
 	import { listUsers } from '$lib/api/users';
+	import { listMyInvitations, acceptInvitation, declineInvitation } from '$lib/api/invitations';
 	import HitCounter from '$lib/components/HitCounter.svelte';
 	import Window from '$lib/components/Window.svelte';
 	import { authStore } from '$lib/stores/auth';
 	import { formatCents, formatDate } from '$lib/utils';
-	import type { BalancesResponse, ExpenseItem, Group, User } from '$lib/api/types';
+	import type { BalancesResponse, ExpenseItem, Group, Invitation, User } from '$lib/api/types';
 
 	let globalBalances = $state<BalancesResponse | null>(null);
 	let groups = $state<Group[]>([]);
 	let users = $state<User[]>([]);
 	let expenses = $state<ExpenseItem[]>([]);
+	let invitations = $state<Invitation[]>([]);
 	let groupStatuses = $state<Record<string, { settled: boolean; count: number }>>({});
 	let loading = $state(true);
 	let unavailable = $state(false);
+	let respondingTo = $state<string | null>(null);
 
 	// Guard against setting state on a destroyed component (async loadDashboard
 	// can outlive the component when the user navigates away mid-load).
@@ -32,16 +35,37 @@
 		loadDashboard();
 	});
 
+	async function handleAccept(id: string) {
+		respondingTo = id;
+		try {
+			await acceptInvitation(id);
+			await loadDashboard();
+		} finally {
+			respondingTo = null;
+		}
+	}
+
+	async function handleDecline(id: string) {
+		respondingTo = id;
+		try {
+			await declineInvitation(id);
+			invitations = invitations.filter((inv) => inv.ID !== id);
+		} finally {
+			respondingTo = null;
+		}
+	}
+
 	async function loadDashboard() {
 		loading = true;
 		unavailable = false;
 
 		try {
-			const [balResult, grpResult, usrResult, expResult] = await Promise.allSettled([
+			const [balResult, grpResult, usrResult, expResult, invResult] = await Promise.allSettled([
 				getBalances(),
 				listGroups(),
 				listUsers(),
-				listExpenses(undefined, undefined, 5)
+				listExpenses(undefined, undefined, 5),
+				listMyInvitations()
 			]);
 
 			if (!mounted) return;
@@ -56,6 +80,7 @@
 			groups = grpResult.status === 'fulfilled' ? grpResult.value : [];
 			users = usrResult.status === 'fulfilled' ? usrResult.value : [];
 			expenses = expResult.status === 'fulfilled' ? (expResult.value?.data ?? []) : [];
+			invitations = invResult.status === 'fulfilled' ? (invResult.value ?? []) : [];
 
 			// Per-group balance status — allSettled so a slow/failed group call never blocks loading
 			const statusResults = await Promise.allSettled(
@@ -125,6 +150,41 @@
 		<HitCounter label="You Are Owed" value={owedToMe} />
 		<HitCounter label="You Owe" value={iOwe} />
 	</div>
+
+	<!-- Pending invitations -->
+	{#if invitations.length > 0}
+		<Window title="PENDING INVITATIONS">
+			<div class="flex flex-col gap-1 font-system text-sm">
+				{#each invitations as inv, i}
+					<div class="flex items-center justify-between px-2 py-1.5
+					            {i % 2 === 0 ? 'bg-win-panel' : 'bg-white'}">
+						<div class="min-w-0">
+							<span class="font-bold truncate">{inv.GroupName}</span>
+							<span class="text-win-dark ml-2 text-xs">
+								invited by {userByID[inv.InviterID]?.DisplayName ?? inv.InviterID}
+							</span>
+						</div>
+						<div class="flex gap-2 shrink-0 ml-3">
+							<button
+								class="text-xs px-2 py-0.5 bg-win-navy text-white font-bold disabled:opacity-50"
+								disabled={respondingTo === inv.ID}
+								onclick={() => handleAccept(inv.ID)}
+							>
+								{respondingTo === inv.ID ? '…' : 'ACCEPT'}
+							</button>
+							<button
+								class="text-xs px-2 py-0.5 border border-win-dark text-win-dark font-bold disabled:opacity-50"
+								disabled={respondingTo === inv.ID}
+								onclick={() => handleDecline(inv.ID)}
+							>
+								DECLINE
+							</button>
+						</div>
+					</div>
+				{/each}
+			</div>
+		</Window>
+	{/if}
 
 	<!-- Groups + Settlements grid -->
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">

@@ -27,7 +27,7 @@ test('settle up records a payment and shows success toast', async ({ page }) => 
 	await register(page, payer);
 	const token = await loginViaApi(payer);
 	const groupID = await createGroupViaApi(token, 'Settle Test Group');
-	await addGroupMemberViaApi(token, groupID, recipient.id);
+	await addGroupMemberViaApi(token, groupID, recipient);
 
 	await page.goto('/settle');
 
@@ -53,7 +53,7 @@ test('settle form validates missing recipient', async ({ page }) => {
 	await register(page, payer);
 	const token = await loginViaApi(payer);
 	const groupID = await createGroupViaApi(token, 'Settle Validation Group');
-	await addGroupMemberViaApi(token, groupID, recipient.id);
+	await addGroupMemberViaApi(token, groupID, recipient);
 
 	await page.goto('/settle');
 

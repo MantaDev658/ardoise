@@ -11,7 +11,7 @@ import (
 )
 
 func newTestGroupService(gRepo *mocks.MockGroupRepo, eRepo *mocks.MockExpenseRepo, aRepo *mocks.MockAuditRepo) *GroupService {
-	return NewGroupService(gRepo, eRepo, aRepo, &mocks.MockTransactor{})
+	return NewGroupService(gRepo, eRepo, aRepo, &mocks.MockInvitationRepo{}, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
 }
 
 func TestGroupService_CRUD(t *testing.T) {
@@ -100,13 +100,13 @@ func TestGroupService_DeleteGroup_SavesAuditLog(t *testing.T) {
 	}
 }
 
-func TestGroupService_AddMember_SavesAuditLog(t *testing.T) {
-	auditSaved := false
-	aRepo := &mocks.MockAuditRepo{
-		SaveFunc: func(ctx context.Context, log domain.AuditLog) error {
-			auditSaved = true
-			if log.Action != domain.AuditActionAddedMember {
-				t.Errorf("expected action %s, got %s", domain.AuditActionAddedMember, log.Action)
+func TestGroupService_InviteUser_SavesInvitation(t *testing.T) {
+	invSaved := false
+	invRepo := &mocks.MockInvitationRepo{
+		SaveFunc: func(ctx context.Context, inv domain.Invitation) error {
+			invSaved = true
+			if inv.InviterID != "Alice" || inv.InviteeID != "Bob" {
+				t.Errorf("unexpected invitation: inviter=%s invitee=%s", inv.InviterID, inv.InviteeID)
 			}
 			return nil
 		},
@@ -116,13 +116,18 @@ func TestGroupService_AddMember_SavesAuditLog(t *testing.T) {
 			return &domain.Group{ID: id, Name: "Trip", Members: []domain.UserID{"Alice"}}, nil
 		},
 	}
-	service := newTestGroupService(gRepo, &mocks.MockExpenseRepo{}, aRepo)
+	uRepo := &mocks.MockUserRepo{
+		GetByIDFunc: func(ctx context.Context, id domain.UserID) (*domain.User, error) {
+			return &domain.User{ID: id, IsActive: true}, nil
+		},
+	}
+	service := NewGroupService(gRepo, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{}, invRepo, uRepo, &mocks.MockTransactor{})
 
-	if err := service.AddMemberToGroup(context.Background(), "g1", "Bob", "Alice"); err != nil {
+	if err := service.InviteUserToGroup(context.Background(), "g1", "Bob", "Alice"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !auditSaved {
-		t.Error("expected auditRepo.Save to be called for AddMemberToGroup")
+	if !invSaved {
+		t.Error("expected invitationRepo.Save to be called for InviteUserToGroup")
 	}
 }
 

@@ -31,20 +31,23 @@ func StartPartitionManager(ctx context.Context, db *sql.DB, retentionMonths int)
 }
 
 func managePartitions(db *sql.DB, retentionMonths int, now time.Time) {
-	// Create partition for next month.
-	nextMonth := now.AddDate(0, 1, 0)
-	startOfNext := time.Date(nextMonth.Year(), nextMonth.Month(), 1, 0, 0, 0, 0, time.UTC)
-	endOfNext := startOfNext.AddDate(0, 1, 0)
-	tableName := fmt.Sprintf("audit_logs_y%dm%02d", startOfNext.Year(), startOfNext.Month())
+	// Ensure partitions exist for the current month and next month.
+	// Creating both guards against the manager having been offline for a period.
+	for _, offset := range []int{0, 1} {
+		target := now.AddDate(0, offset, 0)
+		start := time.Date(target.Year(), target.Month(), 1, 0, 0, 0, 0, time.UTC)
+		end := start.AddDate(0, 1, 0)
+		tableName := fmt.Sprintf("audit_logs_y%dm%02d", start.Year(), start.Month())
 
-	// #nosec G201 -- DDL statements cannot use parameters; inputs are strictly controlled internal dates
-	createSQL := fmt.Sprintf(`
-		CREATE TABLE IF NOT EXISTS %s PARTITION OF audit_logs
-		FOR VALUES FROM ('%s') TO ('%s');
-	`, tableName, startOfNext.Format("2006-01-02"), endOfNext.Format("2006-01-02"))
+		// #nosec G201 -- DDL statements cannot use parameters; inputs are strictly controlled internal dates
+		createSQL := fmt.Sprintf(`
+			CREATE TABLE IF NOT EXISTS %s PARTITION OF audit_logs
+			FOR VALUES FROM ('%s') TO ('%s');
+		`, tableName, start.Format("2006-01-02"), end.Format("2006-01-02"))
 
-	if _, err := db.Exec(createSQL); err != nil {
-		log.Printf("Failed to create audit partition %s: %v", tableName, err)
+		if _, err := db.Exec(createSQL); err != nil {
+			log.Printf("Failed to create audit partition %s: %v", tableName, err)
+		}
 	}
 
 	// Drop all partitions whose month falls before the retention cutoff.
