@@ -109,3 +109,18 @@ jobs:
 
       - name: Run E2E tests
         run: make frontend-e2e
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [e2e]
+    if: github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy to Fly.io
+        run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
