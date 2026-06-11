@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -54,6 +55,20 @@ func envOr(key, fallback string) string {
 	return fallback
 }
 
+func spaHandler(dir string) http.Handler {
+	fs := http.Dir(dir)
+	fileServer := http.FileServer(fs)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		f, err := fs.Open(r.URL.Path)
+		if err != nil {
+			http.ServeFile(w, r, filepath.Join(dir, "index.html"))
+			return
+		}
+		f.Close()
+		fileServer.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	if err := run(); err != nil {
 		log.Fatalf("application failed: %v", err)
@@ -95,32 +110,32 @@ func run() error {
 	h := handlers.NewAPIHandler(expenseService, userService, groupService)
 
 	protected := http.NewServeMux()
-	protected.HandleFunc("POST /expenses", h.CreateExpense)
-	protected.HandleFunc("GET /expenses", h.ListExpenses)
-	protected.HandleFunc("GET /balances", h.GetBalances)
-	protected.HandleFunc("GET /friends/{user_id}/balances", h.GetFriendBalances)
-	protected.HandleFunc("PUT /expenses/{id}", h.UpdateExpense)
-	protected.HandleFunc("DELETE /expenses/{id}", h.DeleteExpense)
-	protected.HandleFunc("POST /settlements", h.CreateSettlement)
+	protected.HandleFunc("POST /api/expenses", h.CreateExpense)
+	protected.HandleFunc("GET /api/expenses", h.ListExpenses)
+	protected.HandleFunc("GET /api/balances", h.GetBalances)
+	protected.HandleFunc("GET /api/friends/{user_id}/balances", h.GetFriendBalances)
+	protected.HandleFunc("PUT /api/expenses/{id}", h.UpdateExpense)
+	protected.HandleFunc("DELETE /api/expenses/{id}", h.DeleteExpense)
+	protected.HandleFunc("POST /api/settlements", h.CreateSettlement)
 
-	protected.HandleFunc("GET /users/me", h.GetCurrentUser)
-	protected.HandleFunc("GET /friends", h.ListFriends)
-	protected.HandleFunc("GET /users", h.ListUsers)
-	protected.HandleFunc("PUT /users/{id}", h.UpdateUser)
-	protected.HandleFunc("PUT /users/{id}/password", h.ChangePassword)
-	protected.HandleFunc("DELETE /users/{id}", h.DeleteUser)
+	protected.HandleFunc("GET /api/users/me", h.GetCurrentUser)
+	protected.HandleFunc("GET /api/friends", h.ListFriends)
+	protected.HandleFunc("GET /api/users", h.ListUsers)
+	protected.HandleFunc("PUT /api/users/{id}", h.UpdateUser)
+	protected.HandleFunc("PUT /api/users/{id}/password", h.ChangePassword)
+	protected.HandleFunc("DELETE /api/users/{id}", h.DeleteUser)
 
-	protected.HandleFunc("POST /groups", h.CreateGroup)
-	protected.HandleFunc("GET /groups", h.ListGroups)
-	protected.HandleFunc("PUT /groups/{id}", h.UpdateGroup)
-	protected.HandleFunc("DELETE /groups/{id}", h.DeleteGroup)
-	protected.HandleFunc("POST /groups/{id}/members", h.AddGroupMember)
-	protected.HandleFunc("DELETE /groups/{id}/members/{user_id}", h.RemoveGroupMember)
-	protected.HandleFunc("GET /groups/{id}/activity", h.GetGroupActivity)
+	protected.HandleFunc("POST /api/groups", h.CreateGroup)
+	protected.HandleFunc("GET /api/groups", h.ListGroups)
+	protected.HandleFunc("PUT /api/groups/{id}", h.UpdateGroup)
+	protected.HandleFunc("DELETE /api/groups/{id}", h.DeleteGroup)
+	protected.HandleFunc("POST /api/groups/{id}/members", h.AddGroupMember)
+	protected.HandleFunc("DELETE /api/groups/{id}/members/{user_id}", h.RemoveGroupMember)
+	protected.HandleFunc("GET /api/groups/{id}/activity", h.GetGroupActivity)
 
-	protected.HandleFunc("GET /invitations", h.ListMyInvitations)
-	protected.HandleFunc("POST /invitations/{id}/accept", h.AcceptInvitation)
-	protected.HandleFunc("POST /invitations/{id}/decline", h.DeclineInvitation)
+	protected.HandleFunc("GET /api/invitations", h.ListMyInvitations)
+	protected.HandleFunc("POST /api/invitations/{id}/accept", h.AcceptInvitation)
+	protected.HandleFunc("POST /api/invitations/{id}/decline", h.DeclineInvitation)
 
 	auth := hmacauth.New([]byte(cfg.jwtSecret))
 	authLimiter := middleware.NewRateLimiter(10, time.Minute)
@@ -130,9 +145,14 @@ func run() error {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"status":"ok"}`)
 	})
-	mux.Handle("POST /auth/register", authLimiter.Middleware(http.HandlerFunc(h.RegisterUser)))
-	mux.Handle("POST /auth/login", authLimiter.Middleware(http.HandlerFunc(h.LoginUser)))
-	mux.Handle("/", middleware.AuthMiddleware(auth)(protected))
+	mux.Handle("POST /api/auth/register", authLimiter.Middleware(http.HandlerFunc(h.RegisterUser)))
+	mux.Handle("POST /api/auth/login", authLimiter.Middleware(http.HandlerFunc(h.LoginUser)))
+	mux.Handle("/api/", middleware.AuthMiddleware(auth)(protected))
+
+	webDir := envOr("WEB_DIR", "/web")
+	if info, err := os.Stat(webDir); err == nil && info.IsDir() {
+		mux.Handle("/", spaHandler(webDir))
+	}
 
 	handler := middleware.SecurityHeaders(
 		middleware.CORSMiddleware(cfg.corsOrigin)(
