@@ -36,6 +36,7 @@ export async function register(page: Page, user: TestUser): Promise<void> {
 }
 
 export async function loginAs(page: Page, user: TestUser): Promise<void> {
+	await page.evaluate(() => localStorage.removeItem('ardoise_auth'));
 	await page.goto('/login');
 	await page.fill('#login-id', user.id);
 	await page.fill('#login-password', user.password);
@@ -99,6 +100,21 @@ export async function createGroupViaApi(
 	if (!res.ok) throw new Error(`createGroupViaApi failed: ${res.status} ${await res.text()}`);
 	const data = await res.json() as { group_id: string };
 	return data.group_id;
+}
+
+// inviteUserViaApi sends an invitation without accepting it, leaving the
+// invitation in the invitee's pending inbox.
+export async function inviteUserViaApi(
+	ownerToken: string,
+	groupID: string,
+	member: TestUser,
+): Promise<void> {
+	const res = await fetch(`${API_BASE}/api/groups/${groupID}/members`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ownerToken}` },
+		body: JSON.stringify({ user_id: member.id }),
+	});
+	if (!res.ok) throw new Error(`inviteUserViaApi failed: ${res.status} ${await res.text()}`);
 }
 
 // addGroupMemberViaApi invites the user to the group and immediately accepts on

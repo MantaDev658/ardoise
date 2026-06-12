@@ -80,6 +80,7 @@ func setupIntegrationServer(t *testing.T) *httptest.Server {
 	protected.HandleFunc("GET /balances", h.GetBalances)
 	protected.HandleFunc("GET /invitations", h.ListMyInvitations)
 	protected.HandleFunc("POST /invitations/{id}/accept", h.AcceptInvitation)
+	protected.HandleFunc("POST /invitations/{id}/decline", h.DeclineInvitation)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /auth/register", h.RegisterUser)
@@ -270,5 +271,100 @@ func TestIntegration_GroupAndExpenseFlow(t *testing.T) {
 	resp.Body.Close()
 	if len(balanceResp.SuggestedSettlements) == 0 {
 		t.Error("expected non-empty suggested_settlements after expense")
+	}
+}
+
+// TestIntegration_InvitationDeclineAndErrors covers the decline path and the
+// error cases (wrong actor → 403, missing invitation → 404) that the happy-path
+// flow test does not exercise.
+func TestIntegration_InvitationDeclineAndErrors(t *testing.T) {
+	srv := setupIntegrationServer(t)
+
+	register := func(id, displayName string) string {
+		resp := doJSON(t, srv.Client(), "POST", srv.URL+"/auth/register", map[string]string{
+			"id": id, "display_name": displayName, "password": "pass1234",
+		}, "")
+		resp.Body.Close()
+		resp = doJSON(t, srv.Client(), "POST", srv.URL+"/auth/login", map[string]string{
+			"id": id, "password": "pass1234",
+		}, "")
+		defer resp.Body.Close()
+		var lb struct {
+			Token string `json:"token"`
+		}
+		json.NewDecoder(resp.Body).Decode(&lb) //nolint:errcheck
+		return lb.Token
+	}
+
+	aliceTok := register("inv-alice", "Alice")
+	bobTok := register("inv-bob", "Bob")
+	charlieTok := register("inv-charlie", "Charlie")
+
+	// Alice creates a group and invites Bob.
+	resp := doJSON(t, srv.Client(), "POST", srv.URL+"/groups", map[string]string{"name": "Decline Test Group"}, aliceTok)
+	var groupResp struct {
+		GroupID string `json:"group_id"`
+	}
+	json.NewDecoder(resp.Body).Decode(&groupResp) //nolint:errcheck
+	resp.Body.Close()
+
+	resp = doJSON(t, srv.Client(), "POST",
+		fmt.Sprintf("%s/groups/%s/members", srv.URL, groupResp.GroupID),
+		map[string]string{"user_id": "inv-bob"}, aliceTok)
+	resp.Body.Close()
+
+	// Bob lists his invitations.
+	resp = doJSON(t, srv.Client(), "GET", srv.URL+"/invitations", nil, bobTok)
+	var invitations []struct {
+		ID string `json:"ID"`
+	}
+	json.NewDecoder(resp.Body).Decode(&invitations) //nolint:errcheck
+	resp.Body.Close()
+	if len(invitations) == 0 {
+		t.Fatal("expected at least one pending invitation for Bob")
+	}
+	invID := invitations[0].ID
+
+	// Charlie (not the invitee) cannot accept Bob's invitation → 403.
+	resp = doJSON(t, srv.Client(), "POST",
+		fmt.Sprintf("%s/invitations/%s/accept", srv.URL, invID), nil, charlieTok)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Errorf("wrong actor accept: expected 403, got %d", resp.StatusCode)
+	}
+
+	// Charlie (not the invitee) cannot decline Bob's invitation → 403.
+	resp = doJSON(t, srv.Client(), "POST",
+		fmt.Sprintf("%s/invitations/%s/decline", srv.URL, invID), nil, charlieTok)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Errorf("wrong actor decline: expected 403, got %d", resp.StatusCode)
+	}
+
+	// Bob declines the invitation → 200.
+	resp = doJSON(t, srv.Client(), "POST",
+		fmt.Sprintf("%s/invitations/%s/decline", srv.URL, invID), nil, bobTok)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("decline: expected 200, got %d", resp.StatusCode)
+	}
+
+	// Invitation is gone — accept on the now-deleted ID → 404.
+	resp = doJSON(t, srv.Client(), "POST",
+		fmt.Sprintf("%s/invitations/%s/accept", srv.URL, invID), nil, bobTok)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("accept after decline: expected 404, got %d", resp.StatusCode)
+	}
+
+	// Bob's invitation list should now be empty.
+	resp = doJSON(t, srv.Client(), "GET", srv.URL+"/invitations", nil, bobTok)
+	var remaining []struct {
+		ID string `json:"ID"`
+	}
+	json.NewDecoder(resp.Body).Decode(&remaining) //nolint:errcheck
+	resp.Body.Close()
+	if len(remaining) != 0 {
+		t.Errorf("expected 0 remaining invitations, got %d", len(remaining))
 	}
 }

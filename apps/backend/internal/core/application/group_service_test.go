@@ -100,6 +100,34 @@ func TestGroupService_DeleteGroup_SavesAuditLog(t *testing.T) {
 	}
 }
 
+func TestGroupService_InviteUser_Errors(t *testing.T) {
+	t.Run("actor not in group returns ErrUnauthorized", func(t *testing.T) {
+		gRepo := &mocks.MockGroupRepo{
+			GetByIDFunc: func(ctx context.Context, id domain.GroupID) (*domain.Group, error) {
+				return &domain.Group{ID: id, Name: "Trip", Members: []domain.UserID{"Alice"}}, nil
+			},
+		}
+		service := newTestGroupService(gRepo, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{})
+		err := service.InviteUserToGroup(context.Background(), "g1", "Bob", "Outsider")
+		if !errors.Is(err, domain.ErrUnauthorized) {
+			t.Errorf("expected ErrUnauthorized, got %v", err)
+		}
+	})
+
+	t.Run("invitee already a member returns ErrUserAlreadyInGroup", func(t *testing.T) {
+		gRepo := &mocks.MockGroupRepo{
+			GetByIDFunc: func(ctx context.Context, id domain.GroupID) (*domain.Group, error) {
+				return &domain.Group{ID: id, Name: "Trip", Members: []domain.UserID{"Alice", "Bob"}}, nil
+			},
+		}
+		service := newTestGroupService(gRepo, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{})
+		err := service.InviteUserToGroup(context.Background(), "g1", "Bob", "Alice")
+		if !errors.Is(err, domain.ErrUserAlreadyInGroup) {
+			t.Errorf("expected ErrUserAlreadyInGroup, got %v", err)
+		}
+	})
+}
+
 func TestGroupService_InviteUser_SavesInvitation(t *testing.T) {
 	invSaved := false
 	invRepo := &mocks.MockInvitationRepo{
@@ -225,6 +253,186 @@ func TestGroupService_RemoveMember_BalanceValidation(t *testing.T) {
 		err := service.RemoveMember(context.Background(), "g1", "Alice", "admin")
 		if !errors.Is(err, domain.ErrOutstandingBalance) {
 			t.Errorf("expected ErrOutstandingBalance (zero-sum trap), got %v", err)
+		}
+	})
+}
+
+func TestGroupService_AcceptInvitation(t *testing.T) {
+	baseInv := domain.Invitation{
+		ID:        "inv-1",
+		GroupID:   "g1",
+		InviterID: "Alice",
+		InviteeID: "Bob",
+	}
+
+	t.Run("adds invitee to group, deletes invitation, saves audit log", func(t *testing.T) {
+		groupSaved := false
+		invDeleted := false
+		auditSaved := false
+
+		invRepo := &mocks.MockInvitationRepo{
+			GetByIDFunc: func(_ context.Context, id string) (domain.Invitation, error) {
+				return baseInv, nil
+			},
+			DeleteFunc: func(_ context.Context, id string) error {
+				invDeleted = true
+				if id != "inv-1" {
+					t.Errorf("expected inv-1, got %s", id)
+				}
+				return nil
+			},
+		}
+		gRepo := &mocks.MockGroupRepo{
+			GetByIDFunc: func(_ context.Context, id domain.GroupID) (*domain.Group, error) {
+				return &domain.Group{ID: id, Name: "Trip", Members: []domain.UserID{"Alice"}}, nil
+			},
+			SaveFunc: func(_ context.Context, g *domain.Group) error {
+				groupSaved = true
+				if !g.HasMember("Bob") {
+					t.Error("expected Bob to be added to group")
+				}
+				return nil
+			},
+		}
+		aRepo := &mocks.MockAuditRepo{
+			SaveFunc: func(_ context.Context, log domain.AuditLog) error {
+				auditSaved = true
+				if log.Action != domain.AuditActionAcceptedInvite {
+					t.Errorf("expected action %s, got %s", domain.AuditActionAcceptedInvite, log.Action)
+				}
+				return nil
+			},
+		}
+		service := NewGroupService(gRepo, &mocks.MockExpenseRepo{}, aRepo, invRepo, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
+
+		if err := service.AcceptInvitation(context.Background(), "inv-1", "Bob"); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !groupSaved {
+			t.Error("expected group to be saved")
+		}
+		if !invDeleted {
+			t.Error("expected invitation to be deleted")
+		}
+		if !auditSaved {
+			t.Error("expected audit log to be saved")
+		}
+	})
+
+	t.Run("non-invitee actor returns ErrUnauthorized", func(t *testing.T) {
+		invRepo := &mocks.MockInvitationRepo{
+			GetByIDFunc: func(_ context.Context, _ string) (domain.Invitation, error) {
+				return baseInv, nil
+			},
+		}
+		service := NewGroupService(&mocks.MockGroupRepo{}, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{}, invRepo, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
+
+		err := service.AcceptInvitation(context.Background(), "inv-1", "Mallory")
+		if !errors.Is(err, domain.ErrUnauthorized) {
+			t.Errorf("expected ErrUnauthorized, got %v", err)
+		}
+	})
+
+	t.Run("invitation not found returns ErrInvitationNotFound", func(t *testing.T) {
+		service := NewGroupService(&mocks.MockGroupRepo{}, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{}, &mocks.MockInvitationRepo{}, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
+
+		err := service.AcceptInvitation(context.Background(), "missing", "Bob")
+		if !errors.Is(err, domain.ErrInvitationNotFound) {
+			t.Errorf("expected ErrInvitationNotFound, got %v", err)
+		}
+	})
+}
+
+func TestGroupService_DeclineInvitation(t *testing.T) {
+	baseInv := domain.Invitation{
+		ID:        "inv-1",
+		GroupID:   "g1",
+		InviterID: "Alice",
+		InviteeID: "Bob",
+	}
+
+	t.Run("deletes invitation", func(t *testing.T) {
+		invDeleted := false
+		invRepo := &mocks.MockInvitationRepo{
+			GetByIDFunc: func(_ context.Context, _ string) (domain.Invitation, error) {
+				return baseInv, nil
+			},
+			DeleteFunc: func(_ context.Context, id string) error {
+				invDeleted = true
+				if id != "inv-1" {
+					t.Errorf("expected inv-1, got %s", id)
+				}
+				return nil
+			},
+		}
+		service := NewGroupService(&mocks.MockGroupRepo{}, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{}, invRepo, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
+
+		if err := service.DeclineInvitation(context.Background(), "inv-1", "Bob"); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !invDeleted {
+			t.Error("expected invitation to be deleted")
+		}
+	})
+
+	t.Run("non-invitee actor returns ErrUnauthorized", func(t *testing.T) {
+		invRepo := &mocks.MockInvitationRepo{
+			GetByIDFunc: func(_ context.Context, _ string) (domain.Invitation, error) {
+				return baseInv, nil
+			},
+		}
+		service := NewGroupService(&mocks.MockGroupRepo{}, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{}, invRepo, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
+
+		err := service.DeclineInvitation(context.Background(), "inv-1", "Mallory")
+		if !errors.Is(err, domain.ErrUnauthorized) {
+			t.Errorf("expected ErrUnauthorized, got %v", err)
+		}
+	})
+
+	t.Run("invitation not found returns ErrInvitationNotFound", func(t *testing.T) {
+		service := NewGroupService(&mocks.MockGroupRepo{}, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{}, &mocks.MockInvitationRepo{}, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
+
+		err := service.DeclineInvitation(context.Background(), "missing", "Bob")
+		if !errors.Is(err, domain.ErrInvitationNotFound) {
+			t.Errorf("expected ErrInvitationNotFound, got %v", err)
+		}
+	})
+}
+
+func TestGroupService_GetMyInvitations(t *testing.T) {
+	t.Run("returns pending invitations for user", func(t *testing.T) {
+		expected := []domain.Invitation{
+			{ID: "inv-1", GroupID: "g1", InviterID: "Alice", InviteeID: "Bob"},
+			{ID: "inv-2", GroupID: "g2", InviterID: "Charlie", InviteeID: "Bob"},
+		}
+		invRepo := &mocks.MockInvitationRepo{
+			GetPendingForUserFunc: func(_ context.Context, userID domain.UserID) ([]domain.Invitation, error) {
+				if userID != "Bob" {
+					t.Errorf("expected userID Bob, got %s", userID)
+				}
+				return expected, nil
+			},
+		}
+		service := NewGroupService(&mocks.MockGroupRepo{}, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{}, invRepo, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
+
+		got, err := service.GetMyInvitations(context.Background(), "Bob")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(got) != 2 {
+			t.Errorf("expected 2 invitations, got %d", len(got))
+		}
+	})
+
+	t.Run("returns empty slice when no invitations", func(t *testing.T) {
+		service := NewGroupService(&mocks.MockGroupRepo{}, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{}, &mocks.MockInvitationRepo{}, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
+
+		got, err := service.GetMyInvitations(context.Background(), "Alice")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(got) != 0 {
+			t.Errorf("expected 0 invitations, got %d", len(got))
 		}
 	})
 }

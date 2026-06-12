@@ -9,6 +9,7 @@
 		{ href: '/', label: 'HOME' },
 		{ href: '/expenses', label: 'EXPENSES' },
 		{ href: '/groups', label: 'GROUPS' },
+		{ href: '/invitations', label: 'INVITATIONS' },
 		{ href: '/settle', label: 'SETTLE UP' }
 	];
 
