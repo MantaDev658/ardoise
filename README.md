@@ -1,6 +1,30 @@
 # Ardoise
 
-A self-hosted, open-source expense splitting app. Track shared costs, manage groups, simplify debts, and settle up — without sending your data to a third party.
+An open-source expense splitting app. Track shared costs, manage groups, simplify debts, and settle up. Use the hosted version, or — since it's open source — run your own copy.
+
+> _"Ardoise" is French slang for a running tab — the slate a café keeps of what you owe._
+
+[![CI](https://github.com/MantaDev658/ardoise/actions/workflows/ci.yml/badge.svg)](https://github.com/MantaDev658/ardoise/actions/workflows/ci.yml)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
+[![Go](https://img.shields.io/badge/Go-1.26-00ADD8.svg?logo=go&logoColor=white)](apps/backend/go.mod)
+[![SvelteKit](https://img.shields.io/badge/SvelteKit-2-FF3E00.svg?logo=svelte&logoColor=white)](apps/frontend/package.json)
+
+---
+
+## Contents
+
+- [Features](#features)
+- [Architecture](#architecture)
+- [Prerequisites](#prerequisites)
+- [Getting Started](#getting-started)
+- [API Reference](#api-reference)
+- [Split Strategies](#split-strategies)
+- [Frontend](#frontend)
+- [CSV CLI](#csv-cli)
+- [Development](#development)
+- [Deployment](#deployment)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
@@ -54,7 +78,7 @@ Domain layer has no external dependencies. Infrastructure depends on domain, nev
 ## Prerequisites
 
 **Backend**
-- Go 1.21+
+- Go 1.26+
 - Docker (for the local PostgreSQL instance)
 - `make`
 - `golang-migrate`: `make setup-migrate`
@@ -68,7 +92,7 @@ Domain layer has no external dependencies. Infrastructure depends on domain, nev
 ## Getting Started
 
 ```bash
-git clone https://github.com/yourusername/ardoise.git
+git clone https://github.com/MantaDev658/ardoise.git
 cd ardoise
 
 # Install frontend dependencies
@@ -258,6 +282,36 @@ make migrate-down      # roll back last migration
 
 CI runs the backend and frontend jobs in parallel. Both must pass before merging.
 The linter (`golangci-lint`) enforces doc comments, error wrapping, and a no-shadow rule.
+
+---
+
+## Deployment
+
+A hosted version is available, so self-hosting is entirely optional — but the code is
+open source and deploys anywhere. Ardoise ships as a single container — a multi-stage build (`apps/backend/Dockerfile`)
+compiles the SvelteKit frontend to static files and bundles them alongside the Go API
+binary, which serves both the API and the SPA on one port. The repo is configured for
+[Fly.io](https://fly.io) via `fly.toml` (region `sjc`, `shared-cpu-1x`/256MB, HTTPS
+forced, health-checked on `/health`).
+
+```bash
+fly launch --no-deploy        # first time only — reuses the committed fly.toml
+
+# Provision a Postgres database and attach it (sets DATABASE_URL automatically)
+fly postgres create
+fly postgres attach <db-app-name>
+
+# Set the remaining secrets
+fly secrets set JWT_SECRET=$(openssl rand -hex 32) \
+                CORS_ORIGIN=https://your-app.fly.dev
+
+fly deploy
+```
+
+`DATABASE_URL`, `JWT_SECRET`, and `CORS_ORIGIN` must be set (see
+[Environment variables](#environment-variables)). The container runs database
+migrations on startup. Any host that can run the Docker image and reach a
+PostgreSQL instance works — Fly.io is just the preconfigured default.
 
 ---
 

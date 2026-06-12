@@ -5,6 +5,7 @@
 	import { listUsers } from '$lib/api/users';
 	import { listMyInvitations, acceptInvitation, declineInvitation } from '$lib/api/invitations';
 	import HitCounter from '$lib/components/HitCounter.svelte';
+	import Landing from '$lib/components/Landing.svelte';
 	import Window from '$lib/components/Window.svelte';
 	import { authStore } from '$lib/stores/auth';
 	import { formatCents, formatDate } from '$lib/utils';
@@ -32,7 +33,9 @@
 	const userByID = $derived(Object.fromEntries((users ?? []).map((u) => [u.ID, u])));
 
 	onMount(() => {
-		loadDashboard();
+		// The public landing page renders at "/" when logged out — don't fire
+		// authenticated API calls in that case.
+		if ($authStore.token) loadDashboard();
 	});
 
 	async function handleAccept(id: string) {
@@ -106,9 +109,12 @@
 </script>
 
 <svelte:head>
-	<title>Dashboard — Ardoise</title>
+	<title>{$authStore.token ? 'Dashboard — Ardoise' : 'Ardoise — Split expenses, settle up'}</title>
 </svelte:head>
 
+{#if !$authStore.token}
+	<Landing />
+{:else}
 {#if loading}
 	<p class="font-system text-white text-sm animate-pulse">Loading…</p>
 {:else if unavailable}
@@ -289,4 +295,5 @@
 		{/if}
 	</Window>
 	{/if}
+{/if}
 {/if}

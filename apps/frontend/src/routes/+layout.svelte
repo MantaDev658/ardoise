@@ -10,12 +10,15 @@
 
 	let { children }: { children: Snippet } = $props();
 
-	const PUBLIC = new Set(['/login', '/register']);
+	// Routes a logged-out user may view without being redirected to /login.
+	const NO_AUTH_REQUIRED = new Set(['/', '/login', '/register']);
+	// Routes that render without the app chrome (their own full-page layout).
+	const NO_CHROME = new Set(['/login', '/register']);
 
-	const authenticated = $derived(!!$authStore.token && !PUBLIC.has($page.url.pathname));
+	const authenticated = $derived(!!$authStore.token && !NO_CHROME.has($page.url.pathname));
 
 	$effect(() => {
-		if (!$authStore.token && !PUBLIC.has($page.url.pathname)) {
+		if (!$authStore.token && !NO_AUTH_REQUIRED.has($page.url.pathname)) {
 			goto('/login');
 		}
 	});
