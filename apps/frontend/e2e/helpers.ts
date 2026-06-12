@@ -1,5 +1,11 @@
 import type { Page } from '@playwright/test';
 
+const API_BASE = 'http://localhost:8080';
+
+if (!API_BASE.includes('localhost') && !API_BASE.includes('127.0.0.1')) {
+	throw new Error(`E2E helpers: API_BASE (${API_BASE}) must point to localhost — refusing to run tests against a remote host`);
+}
+
 export interface TestUser {
 	id: string;
 	displayName: string;
@@ -41,7 +47,7 @@ export async function loginAs(page: Page, user: TestUser): Promise<void> {
 // Register a user directly via the backend API (no browser interaction needed).
 // Useful for creating a second user that just needs to exist in the DB.
 export async function registerViaApi(user: TestUser): Promise<void> {
-	const res = await fetch('http://localhost:8080/api/auth/register', {
+	const res = await fetch(`${API_BASE}/api/auth/register`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ id: user.id, display_name: user.displayName, password: user.password }),
@@ -50,7 +56,7 @@ export async function registerViaApi(user: TestUser): Promise<void> {
 }
 
 export async function loginViaApi(user: TestUser): Promise<string> {
-	const res = await fetch('http://localhost:8080/api/auth/login', {
+	const res = await fetch(`${API_BASE}/api/auth/login`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ id: user.id, password: user.password }),
@@ -67,7 +73,7 @@ export async function createGroupExpenseViaApi(
 	totalCents: number,
 ): Promise<void> {
 	const splits = participantIDs.map((id) => ({ user_id: id, value: totalCents / participantIDs.length }));
-	const res = await fetch('http://localhost:8080/api/expenses', {
+	const res = await fetch(`${API_BASE}/api/expenses`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
 		body: JSON.stringify({
@@ -85,7 +91,7 @@ export async function createGroupViaApi(
 	token: string,
 	name: string,
 ): Promise<string> {
-	const res = await fetch('http://localhost:8080/api/groups', {
+	const res = await fetch(`${API_BASE}/api/groups`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
 		body: JSON.stringify({ name }),
@@ -102,7 +108,7 @@ export async function addGroupMemberViaApi(
 	groupID: string,
 	member: TestUser,
 ): Promise<void> {
-	const inviteRes = await fetch(`http://localhost:8080/api/groups/${groupID}/members`, {
+	const inviteRes = await fetch(`${API_BASE}/api/groups/${groupID}/members`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ownerToken}` },
 		body: JSON.stringify({ user_id: member.id }),
@@ -110,13 +116,13 @@ export async function addGroupMemberViaApi(
 	if (!inviteRes.ok) throw new Error(`addGroupMemberViaApi (invite) failed: ${inviteRes.status} ${await inviteRes.text()}`);
 
 	const memberToken = await loginViaApi(member);
-	const listRes = await fetch('http://localhost:8080/api/invitations', {
+	const listRes = await fetch(`${API_BASE}/api/invitations`, {
 		headers: { Authorization: `Bearer ${memberToken}` },
 	});
 	if (!listRes.ok) throw new Error(`addGroupMemberViaApi (list) failed: ${listRes.status} ${await listRes.text()}`);
 	const invitations = await listRes.json() as Array<{ ID: string }>;
 	for (const inv of invitations) {
-		await fetch(`http://localhost:8080/api/invitations/${inv.ID}/accept`, {
+		await fetch(`${API_BASE}/api/invitations/${inv.ID}/accept`, {
 			method: 'POST',
 			headers: { Authorization: `Bearer ${memberToken}` },
 		});
