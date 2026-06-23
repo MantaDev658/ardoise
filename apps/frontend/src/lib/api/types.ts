@@ -25,17 +25,6 @@ export interface SettlementSuggestion {
 	Amount: number; // cents
 }
 
-// Matches backend domain.AuditLog (has json tags)
-export interface AuditLog {
-	id: string;
-	group_id: string;
-	user_id: string;
-	action: string;
-	target_id?: string;
-	details?: string;
-	created_at: string;
-}
-
 export interface ExpenseSplit {
 	user_id: string;
 	amount_cents: number;
@@ -58,7 +47,7 @@ export interface BalancesResponse {
 	suggested_settlements: SettlementSuggestion[];
 }
 
-// Paginated list response (GET /expenses, GET /groups/{id}/activity)
+// Paginated list response (GET /expenses)
 export interface Paginated<T> {
 	data: T[];
 	next_cursor: string;

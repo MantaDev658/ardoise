@@ -25,7 +25,7 @@ func TestAPIHandler_Users(t *testing.T) {
 			return []domain.User{{ID: "Alice", DisplayName: "Alice"}}, nil
 		},
 	}
-	es, us, gs := newTestServices(&mocks.MockExpenseRepo{}, uRepo, &mocks.MockGroupRepo{}, &mocks.MockAuditRepo{})
+	es, us, gs := newTestServices(&mocks.MockExpenseRepo{}, uRepo, &mocks.MockGroupRepo{})
 	handler := NewAPIHandler(es, us, gs)
 
 	t.Run("GET /users returns list", func(t *testing.T) {
@@ -118,7 +118,7 @@ func TestAPIHandler_ChangePassword(t *testing.T) {
 	}
 
 	t.Run("returns 403 when caller is not the target", func(t *testing.T) {
-		_, us, gs := newTestServices(&mocks.MockExpenseRepo{}, makeUserRepo(), &mocks.MockGroupRepo{}, &mocks.MockAuditRepo{})
+		_, us, gs := newTestServices(&mocks.MockExpenseRepo{}, makeUserRepo(), &mocks.MockGroupRepo{})
 		h := NewAPIHandler(nil, us, gs)
 		rr, req := makeRequest("Bob", "Alice", `{"current_password":"currentpass","new_password":"newpass1"}`)
 		h.ChangePassword(rr, req)
@@ -128,7 +128,7 @@ func TestAPIHandler_ChangePassword(t *testing.T) {
 	})
 
 	t.Run("returns 400 when current password is wrong", func(t *testing.T) {
-		_, us, gs := newTestServices(&mocks.MockExpenseRepo{}, makeUserRepo(), &mocks.MockGroupRepo{}, &mocks.MockAuditRepo{})
+		_, us, gs := newTestServices(&mocks.MockExpenseRepo{}, makeUserRepo(), &mocks.MockGroupRepo{})
 		h := NewAPIHandler(nil, us, gs)
 		rr, req := makeRequest("alice", "alice", `{"current_password":"wrongpass","new_password":"newpass123"}`)
 		h.ChangePassword(rr, req)
@@ -138,7 +138,7 @@ func TestAPIHandler_ChangePassword(t *testing.T) {
 	})
 
 	t.Run("returns 400 when new password is too short", func(t *testing.T) {
-		_, us, gs := newTestServices(&mocks.MockExpenseRepo{}, makeUserRepo(), &mocks.MockGroupRepo{}, &mocks.MockAuditRepo{})
+		_, us, gs := newTestServices(&mocks.MockExpenseRepo{}, makeUserRepo(), &mocks.MockGroupRepo{})
 		h := NewAPIHandler(nil, us, gs)
 		rr, req := makeRequest("alice", "alice", `{"current_password":"currentpass","new_password":"short"}`)
 		h.ChangePassword(rr, req)
@@ -148,7 +148,7 @@ func TestAPIHandler_ChangePassword(t *testing.T) {
 	})
 
 	t.Run("returns 400 when new password equals current", func(t *testing.T) {
-		_, us, gs := newTestServices(&mocks.MockExpenseRepo{}, makeUserRepo(), &mocks.MockGroupRepo{}, &mocks.MockAuditRepo{})
+		_, us, gs := newTestServices(&mocks.MockExpenseRepo{}, makeUserRepo(), &mocks.MockGroupRepo{})
 		h := NewAPIHandler(nil, us, gs)
 		rr, req := makeRequest("alice", "alice", `{"current_password":"currentpass","new_password":"currentpass"}`)
 		h.ChangePassword(rr, req)
@@ -158,7 +158,7 @@ func TestAPIHandler_ChangePassword(t *testing.T) {
 	})
 
 	t.Run("returns 200 on success", func(t *testing.T) {
-		_, us, gs := newTestServices(&mocks.MockExpenseRepo{}, makeUserRepo(), &mocks.MockGroupRepo{}, &mocks.MockAuditRepo{})
+		_, us, gs := newTestServices(&mocks.MockExpenseRepo{}, makeUserRepo(), &mocks.MockGroupRepo{})
 		h := NewAPIHandler(nil, us, gs)
 		rr, req := makeRequest("alice", "alice", `{"current_password":"currentpass","new_password":"newpassword123"}`)
 		h.ChangePassword(rr, req)
@@ -177,7 +177,7 @@ func TestGetCurrentUser(t *testing.T) {
 			return nil, domain.ErrUserNotFound
 		},
 	}
-	_, us, gs := newTestServices(&mocks.MockExpenseRepo{}, uRepo, &mocks.MockGroupRepo{}, &mocks.MockAuditRepo{})
+	_, us, gs := newTestServices(&mocks.MockExpenseRepo{}, uRepo, &mocks.MockGroupRepo{})
 	h := NewAPIHandler(nil, us, gs)
 
 	t.Run("returns 401 when unauthenticated", func(t *testing.T) {
@@ -219,7 +219,7 @@ func TestAPIHandler_ListFriends(t *testing.T) {
 			return []domain.User{{ID: "Bob", DisplayName: "Bob"}}, nil
 		},
 	}
-	_, us, gs := newTestServices(&mocks.MockExpenseRepo{}, uRepo, &mocks.MockGroupRepo{}, &mocks.MockAuditRepo{})
+	_, us, gs := newTestServices(&mocks.MockExpenseRepo{}, uRepo, &mocks.MockGroupRepo{})
 	h := NewAPIHandler(nil, us, gs)
 
 	t.Run("returns 401 when not authenticated", func(t *testing.T) {
@@ -255,7 +255,7 @@ func TestAPIHandler_Auth(t *testing.T) {
 			return &domain.User{ID: id, IsActive: true, PasswordHash: string(hash)}, nil
 		},
 	}
-	_, us, gs := newTestServices(&mocks.MockExpenseRepo{}, uRepo, &mocks.MockGroupRepo{}, &mocks.MockAuditRepo{})
+	_, us, gs := newTestServices(&mocks.MockExpenseRepo{}, uRepo, &mocks.MockGroupRepo{})
 	h := NewAPIHandler(nil, us, gs)
 
 	t.Run("POST /auth/register returns 409 on duplicate username", func(t *testing.T) {

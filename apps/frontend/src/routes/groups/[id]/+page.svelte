@@ -7,12 +7,11 @@
 	import {
 		addGroupMember,
 		deleteGroup,
-		getGroupActivity,
 		listGroups,
 		removeGroupMember,
 		updateGroup
 	} from '$lib/api/groups';
-	import type { AuditLog, BalancesResponse, ExpenseItem, Group, User } from '$lib/api/types';
+	import type { BalancesResponse, ExpenseItem, Group, User } from '$lib/api/types';
 	import { listUsers } from '$lib/api/users';
 	import Button from '$lib/components/Button.svelte';
 	import HRule from '$lib/components/HRule.svelte';
@@ -22,7 +21,7 @@
 	import { toastStore } from '$lib/stores/toast';
 	import { formatCents, formatDate } from '$lib/utils';
 
-	type Tab = 'members' | 'expenses' | 'activity' | 'balances';
+	type Tab = 'members' | 'expenses' | 'balances';
 
 	// ── Route ────────────────────────────────────────────────────────
 	const groupID = $derived($page.params.id ?? '');
@@ -31,9 +30,6 @@
 	let group = $state<Group | null>(null);
 	let allUsers = $state<User[]>([]);
 	let expenses = $state<ExpenseItem[]>([]);
-	let activity = $state<AuditLog[]>([]);
-	let activityCursor = $state('');
-	let activityCursorStack = $state<string[]>([]);
 
 	// ── UI ───────────────────────────────────────────────────────────
 	let loading = $state(true);
@@ -88,7 +84,6 @@
 			expenseNextCursor = '';
 			loadExpenses();
 		}
-		if (tab === 'activity' && groupID) loadActivity();
 		if (tab === 'balances' && groupID) loadBalances();
 	});
 
@@ -113,16 +108,6 @@
 		const cursor = stack.at(-1) ?? '';
 		expenseCursorStack = stack;
 		loadExpenses(cursor);
-	}
-
-	async function loadActivity(cursor = '') {
-		try {
-			const result = await getGroupActivity(groupID, cursor || undefined, 20);
-			activity = result.data;
-			activityCursor = result.next_cursor;
-		} catch {
-			toastStore.error('Failed to load activity.');
-		}
 	}
 
 	// ── Members ───────────────────────────────────────────────────────
@@ -215,36 +200,6 @@
 		}
 	}
 
-	// ── Audit log formatting ──────────────────────────────────────────
-	function formatAuditEntry(log: AuditLog): string {
-		const actor = userByID[log.user_id]?.DisplayName ?? log.user_id;
-		const targetUser = log.target_id ? (userByID[log.target_id]?.DisplayName ?? log.target_id) : null;
-		const name = group?.Name ?? 'this group';
-
-		switch (log.action) {
-			case 'CREATED_GROUP':
-				return `${actor} created "${name}"`;
-			case 'ADDED_MEMBER':
-				return `${actor} added ${targetUser} to ${name}`;
-			case 'REMOVED_GROUP_MEMBER':
-				return `${actor} removed ${targetUser} from ${name}`;
-			case 'RENAMED_GROUP':
-				return `${actor} renamed the group to "${log.details?.replace('Renamed to ', '')}"`;
-			case 'DELETED_GROUP':
-				return `${actor} deleted the group`;
-			case 'CREATED_EXPENSE':
-				return `${actor} added expense "${log.details}"`;
-			case 'UPDATED_EXPENSE':
-				return `${actor} updated expense "${log.details?.replace('Updated: ', '')}"`;
-			case 'DELETED_EXPENSE':
-				return `${actor} deleted expense "${log.details?.replace('Deleted expense: ', '')}"`;
-			case 'SETTLED_DEBT':
-				return `${actor} recorded a payment`;
-			default:
-				return `${actor}: ${log.action}${log.details ? ` — ${log.details}` : ''}`;
-		}
-	}
-
 	// ── Balances ──────────────────────────────────────────────────────
 	let balances = $state<BalancesResponse | null>(null);
 
@@ -254,20 +209,6 @@
 		} catch {
 			toastStore.error('Failed to load balances.');
 		}
-	}
-
-	// ── Activity pagination ───────────────────────────────────────────
-	function activityNext() {
-		activityCursorStack = [...activityCursorStack, activityCursor];
-		loadActivity(activityCursor);
-	}
-
-	function activityPrev() {
-		const stack = [...activityCursorStack];
-		stack.pop();
-		const cursor = stack.at(-1) ?? '';
-		activityCursorStack = stack;
-		loadActivity(cursor);
 	}
 </script>
 
@@ -283,7 +224,7 @@
 	<Window title={group.Name}>
 		<!-- Tab bar -->
 		<div class="flex gap-0 -mx-2 -mt-2 sm:-mx-4 sm:-mt-4 mb-4 overflow-x-auto">
-			{#each (['members', 'balances', 'expenses', 'activity'] as Tab[]) as t}
+			{#each (['members', 'balances', 'expenses'] as Tab[]) as t}
 				<button
 					class="px-4 py-1.5 text-xs font-bold uppercase font-system shrink-0
 					       {tab === t ? 'bg-win95 text-black' : 'bg-win-dark text-white hover:bg-win95 hover:text-black'}"
@@ -381,25 +322,6 @@
 				<div class="flex gap-2 mt-3">
 					<Button onclick={expensePrev} disabled={!expenseCursorStack.length}>◀ PREV</Button>
 					<Button onclick={expenseNext} disabled={!expenseNextCursor}>NEXT ▶</Button>
-				</div>
-			{/if}
-
-		<!-- Activity tab -->
-		{:else if tab === 'activity'}
-			{#if !activity.length}
-				<p class="font-system text-sm text-win-dark">No activity yet.</p>
-			{:else}
-				<div class="flex flex-col gap-1 font-system text-xs">
-					{#each activity as log, i}
-						<div class="px-2 py-1 {i % 2 === 0 ? 'bg-win-panel' : 'bg-white'} flex items-baseline gap-3">
-							<span class="text-win-dark shrink-0 font-mono">{formatDate(log.created_at)}</span>
-							<span>{formatAuditEntry(log)}</span>
-						</div>
-					{/each}
-				</div>
-				<div class="flex gap-2 mt-3">
-					<Button onclick={activityPrev} disabled={!activityCursorStack.length}>◀ PREV</Button>
-					<Button onclick={activityNext} disabled={!activityCursor}>NEXT ▶</Button>
 				</div>
 			{/if}
 

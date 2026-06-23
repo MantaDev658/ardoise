@@ -35,7 +35,6 @@ An open-source expense splitting app. Track shared costs, manage groups, simplif
 - **Four split strategies** — even, exact, percentage, and proportional shares
 - **Penny-perfect math** — a custom `money` engine distributes remainders deterministically; no floating-point drift
 - **Debt simplification** — greedy algorithm reduces N bilateral debts to the minimum number of transactions
-- **Audit log** — every mutation is recorded per group with actor and timestamp
 - **Cursor-based pagination** — all list endpoints paginated with `?limit` and `?cursor`
 - **Retro UI** — Windows 95 design system: beveled borders, navy title bars, tiled desktop background
 - **CSV CLI** — standalone binary for offline expense parsing from a ledger file
@@ -176,7 +175,6 @@ Paginated endpoints accept `?limit=N` (default 20, max 100) and `?cursor=<RFC333
 | DELETE | `/groups/{id}` | Delete a group |
 | POST | `/groups/{id}/members` | Add a member |
 | DELETE | `/groups/{id}/members/{user_id}` | Remove a member (blocked if outstanding balance) |
-| GET | `/groups/{id}/activity` | Paginated audit log for a group |
 
 ### Request bodies
 

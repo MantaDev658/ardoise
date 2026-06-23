@@ -16,10 +16,6 @@ import (
 )
 
 func TestAPIHandler_Groups(t *testing.T) {
-	aRepo := &mocks.MockAuditRepo{
-		SaveFunc: func(ctx context.Context, log domain.AuditLog) error { return nil },
-	}
-
 	eRepo := &mocks.MockExpenseRepo{
 		ListByGroupFunc: func(ctx context.Context, groupID domain.GroupID, page domain.Page) ([]*domain.Expense, error) {
 			return []*domain.Expense{}, nil
@@ -47,7 +43,7 @@ func TestAPIHandler_Groups(t *testing.T) {
 			return &domain.User{ID: "Alice", IsActive: true, PasswordHash: string(hash)}, nil
 		},
 	}
-	es, us, gs := newTestServices(eRepo, uRepo, gRepo, aRepo)
+	es, us, gs := newTestServices(eRepo, uRepo, gRepo)
 	handler := NewAPIHandler(es, us, gs)
 
 	t.Run("POST /groups creates a group using JWT identity as creator", func(t *testing.T) {

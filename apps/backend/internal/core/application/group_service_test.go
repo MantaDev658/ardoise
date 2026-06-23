@@ -10,15 +10,14 @@ import (
 	"ardoise/libs/shared/money"
 )
 
-func newTestGroupService(gRepo *mocks.MockGroupRepo, eRepo *mocks.MockExpenseRepo, aRepo *mocks.MockAuditRepo) *GroupService {
-	return NewGroupService(gRepo, eRepo, aRepo, &mocks.MockInvitationRepo{}, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
+func newTestGroupService(gRepo *mocks.MockGroupRepo, eRepo *mocks.MockExpenseRepo) *GroupService {
+	return NewGroupService(gRepo, eRepo, &mocks.MockInvitationRepo{}, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
 }
 
 func TestGroupService_CRUD(t *testing.T) {
 	gRepo := &mocks.MockGroupRepo{}
 	eRepo := &mocks.MockExpenseRepo{}
-	aRepo := &mocks.MockAuditRepo{}
-	service := newTestGroupService(gRepo, eRepo, aRepo)
+	service := newTestGroupService(gRepo, eRepo)
 
 	t.Run("UpdateGroup fails on empty name", func(t *testing.T) {
 		err := service.UpdateGroup(context.Background(), "g1", "", "u1")
@@ -35,68 +34,22 @@ func TestGroupService_CRUD(t *testing.T) {
 	})
 }
 
-func TestGroupService_CreateGroup_SavesAuditLog(t *testing.T) {
-	auditSaved := false
-	aRepo := &mocks.MockAuditRepo{
-		SaveFunc: func(ctx context.Context, log domain.AuditLog) error {
-			auditSaved = true
-			if log.Action != domain.AuditActionCreatedGroup {
-				t.Errorf("expected action %s, got %s", domain.AuditActionCreatedGroup, log.Action)
-			}
+func TestGroupService_CreateGroup(t *testing.T) {
+	groupSaved := false
+	gRepo := &mocks.MockGroupRepo{
+		SaveFunc: func(_ context.Context, _ *domain.Group) error {
+			groupSaved = true
 			return nil
 		},
 	}
-	gRepo := &mocks.MockGroupRepo{}
-	service := newTestGroupService(gRepo, &mocks.MockExpenseRepo{}, aRepo)
+	service := newTestGroupService(gRepo, &mocks.MockExpenseRepo{})
 
 	_, err := service.CreateGroup(context.Background(), CreateGroupCommand{Name: "Trip", CreatorID: "Alice"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !auditSaved {
-		t.Error("expected auditRepo.Save to be called for CreateGroup")
-	}
-}
-
-func TestGroupService_UpdateGroup_SavesAuditLog(t *testing.T) {
-	auditSaved := false
-	aRepo := &mocks.MockAuditRepo{
-		SaveFunc: func(ctx context.Context, log domain.AuditLog) error {
-			auditSaved = true
-			if log.Action != domain.AuditActionRenamedGroup {
-				t.Errorf("expected action %s, got %s", domain.AuditActionRenamedGroup, log.Action)
-			}
-			return nil
-		},
-	}
-	service := newTestGroupService(&mocks.MockGroupRepo{}, &mocks.MockExpenseRepo{}, aRepo)
-
-	if err := service.UpdateGroup(context.Background(), "g1", "New Name", "Alice"); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !auditSaved {
-		t.Error("expected auditRepo.Save to be called for UpdateGroup")
-	}
-}
-
-func TestGroupService_DeleteGroup_SavesAuditLog(t *testing.T) {
-	auditSaved := false
-	aRepo := &mocks.MockAuditRepo{
-		SaveFunc: func(ctx context.Context, log domain.AuditLog) error {
-			auditSaved = true
-			if log.Action != domain.AuditActionDeletedGroup {
-				t.Errorf("expected action %s, got %s", domain.AuditActionDeletedGroup, log.Action)
-			}
-			return nil
-		},
-	}
-	service := newTestGroupService(&mocks.MockGroupRepo{}, &mocks.MockExpenseRepo{}, aRepo)
-
-	if err := service.DeleteGroup(context.Background(), "g1", "Alice"); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !auditSaved {
-		t.Error("expected auditRepo.Save to be called for DeleteGroup")
+	if !groupSaved {
+		t.Error("expected groupRepo.Save to be called for CreateGroup")
 	}
 }
 
@@ -107,7 +60,7 @@ func TestGroupService_InviteUser_Errors(t *testing.T) {
 				return &domain.Group{ID: id, Name: "Trip", Members: []domain.UserID{"Alice"}}, nil
 			},
 		}
-		service := newTestGroupService(gRepo, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{})
+		service := newTestGroupService(gRepo, &mocks.MockExpenseRepo{})
 		err := service.InviteUserToGroup(context.Background(), "g1", "Bob", "Outsider")
 		if !errors.Is(err, domain.ErrUnauthorized) {
 			t.Errorf("expected ErrUnauthorized, got %v", err)
@@ -120,7 +73,7 @@ func TestGroupService_InviteUser_Errors(t *testing.T) {
 				return &domain.Group{ID: id, Name: "Trip", Members: []domain.UserID{"alice", "bob"}}, nil
 			},
 		}
-		service := newTestGroupService(gRepo, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{})
+		service := newTestGroupService(gRepo, &mocks.MockExpenseRepo{})
 		// "Bob" is normalized to "bob", which already belongs to the group.
 		err := service.InviteUserToGroup(context.Background(), "g1", "Bob", "alice")
 		if !errors.Is(err, domain.ErrUserAlreadyInGroup) {
@@ -150,34 +103,13 @@ func TestGroupService_InviteUser_SavesInvitation(t *testing.T) {
 			return &domain.User{ID: id, IsActive: true}, nil
 		},
 	}
-	service := NewGroupService(gRepo, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{}, invRepo, uRepo, &mocks.MockTransactor{})
+	service := NewGroupService(gRepo, &mocks.MockExpenseRepo{}, invRepo, uRepo, &mocks.MockTransactor{})
 
 	if err := service.InviteUserToGroup(context.Background(), "g1", "Bob", "alice"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !invSaved {
 		t.Error("expected invitationRepo.Save to be called for InviteUserToGroup")
-	}
-}
-
-func TestGroupService_RemoveMember_SavesAuditLog(t *testing.T) {
-	auditSaved := false
-	aRepo := &mocks.MockAuditRepo{
-		SaveFunc: func(ctx context.Context, log domain.AuditLog) error {
-			auditSaved = true
-			if log.Action != domain.AuditActionRemovedMember {
-				t.Errorf("expected action %s, got %s", domain.AuditActionRemovedMember, log.Action)
-			}
-			return nil
-		},
-	}
-	service := newTestGroupService(&mocks.MockGroupRepo{}, &mocks.MockExpenseRepo{}, aRepo)
-
-	if err := service.RemoveMember(context.Background(), "g1", "Bob", "Alice"); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !auditSaved {
-		t.Error("expected auditRepo.Save to be called for RemoveMember")
 	}
 }
 
@@ -189,7 +121,7 @@ func TestGroupService_RemoveMember_AcquiresGroupLock(t *testing.T) {
 			return nil
 		},
 	}
-	service := newTestGroupService(gRepo, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{})
+	service := newTestGroupService(gRepo, &mocks.MockExpenseRepo{})
 
 	if err := service.RemoveMember(context.Background(), "g1", "Bob", "Alice"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -200,7 +132,6 @@ func TestGroupService_RemoveMember_AcquiresGroupLock(t *testing.T) {
 }
 
 func TestGroupService_RemoveMember_BalanceValidation(t *testing.T) {
-	aRepo := &mocks.MockAuditRepo{}
 	gRepo := &mocks.MockGroupRepo{}
 
 	t.Run("Fails if user has an outstanding balance", func(t *testing.T) {
@@ -216,7 +147,7 @@ func TestGroupService_RemoveMember_BalanceValidation(t *testing.T) {
 			},
 		}
 
-		service := newTestGroupService(gRepo, eRepo, aRepo)
+		service := newTestGroupService(gRepo, eRepo)
 
 		err := service.RemoveMember(context.Background(), "g1", "UserB", "a1")
 		if !errors.Is(err, domain.ErrOutstandingBalance) {
@@ -226,7 +157,7 @@ func TestGroupService_RemoveMember_BalanceValidation(t *testing.T) {
 
 	t.Run("Succeeds if user balance is exactly zero", func(t *testing.T) {
 		eRepo := &mocks.MockExpenseRepo{}
-		service := newTestGroupService(gRepo, eRepo, aRepo)
+		service := newTestGroupService(gRepo, eRepo)
 
 		err := service.RemoveMember(context.Background(), "g1", "UserC", "a1")
 		if err != nil {
@@ -249,7 +180,7 @@ func TestGroupService_RemoveMember_BalanceValidation(t *testing.T) {
 				return []*domain.Expense{exp1, exp2}, nil
 			},
 		}
-		service := newTestGroupService(gRepo, eRepo, aRepo)
+		service := newTestGroupService(gRepo, eRepo)
 
 		err := service.RemoveMember(context.Background(), "g1", "Alice", "admin")
 		if !errors.Is(err, domain.ErrOutstandingBalance) {
@@ -266,10 +197,9 @@ func TestGroupService_AcceptInvitation(t *testing.T) {
 		InviteeID: "Bob",
 	}
 
-	t.Run("adds invitee to group, deletes invitation, saves audit log", func(t *testing.T) {
+	t.Run("adds invitee to group and deletes invitation", func(t *testing.T) {
 		groupSaved := false
 		invDeleted := false
-		auditSaved := false
 
 		invRepo := &mocks.MockInvitationRepo{
 			GetByIDFunc: func(_ context.Context, id string) (domain.Invitation, error) {
@@ -295,16 +225,7 @@ func TestGroupService_AcceptInvitation(t *testing.T) {
 				return nil
 			},
 		}
-		aRepo := &mocks.MockAuditRepo{
-			SaveFunc: func(_ context.Context, log domain.AuditLog) error {
-				auditSaved = true
-				if log.Action != domain.AuditActionAcceptedInvite {
-					t.Errorf("expected action %s, got %s", domain.AuditActionAcceptedInvite, log.Action)
-				}
-				return nil
-			},
-		}
-		service := NewGroupService(gRepo, &mocks.MockExpenseRepo{}, aRepo, invRepo, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
+		service := NewGroupService(gRepo, &mocks.MockExpenseRepo{}, invRepo, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
 
 		if err := service.AcceptInvitation(context.Background(), "inv-1", "Bob"); err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -315,9 +236,6 @@ func TestGroupService_AcceptInvitation(t *testing.T) {
 		if !invDeleted {
 			t.Error("expected invitation to be deleted")
 		}
-		if !auditSaved {
-			t.Error("expected audit log to be saved")
-		}
 	})
 
 	t.Run("non-invitee actor returns ErrUnauthorized", func(t *testing.T) {
@@ -326,7 +244,7 @@ func TestGroupService_AcceptInvitation(t *testing.T) {
 				return baseInv, nil
 			},
 		}
-		service := NewGroupService(&mocks.MockGroupRepo{}, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{}, invRepo, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
+		service := NewGroupService(&mocks.MockGroupRepo{}, &mocks.MockExpenseRepo{}, invRepo, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
 
 		err := service.AcceptInvitation(context.Background(), "inv-1", "Mallory")
 		if !errors.Is(err, domain.ErrUnauthorized) {
@@ -335,7 +253,7 @@ func TestGroupService_AcceptInvitation(t *testing.T) {
 	})
 
 	t.Run("invitation not found returns ErrInvitationNotFound", func(t *testing.T) {
-		service := NewGroupService(&mocks.MockGroupRepo{}, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{}, &mocks.MockInvitationRepo{}, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
+		service := NewGroupService(&mocks.MockGroupRepo{}, &mocks.MockExpenseRepo{}, &mocks.MockInvitationRepo{}, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
 
 		err := service.AcceptInvitation(context.Background(), "missing", "Bob")
 		if !errors.Is(err, domain.ErrInvitationNotFound) {
@@ -366,7 +284,7 @@ func TestGroupService_DeclineInvitation(t *testing.T) {
 				return nil
 			},
 		}
-		service := NewGroupService(&mocks.MockGroupRepo{}, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{}, invRepo, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
+		service := NewGroupService(&mocks.MockGroupRepo{}, &mocks.MockExpenseRepo{}, invRepo, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
 
 		if err := service.DeclineInvitation(context.Background(), "inv-1", "Bob"); err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -382,7 +300,7 @@ func TestGroupService_DeclineInvitation(t *testing.T) {
 				return baseInv, nil
 			},
 		}
-		service := NewGroupService(&mocks.MockGroupRepo{}, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{}, invRepo, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
+		service := NewGroupService(&mocks.MockGroupRepo{}, &mocks.MockExpenseRepo{}, invRepo, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
 
 		err := service.DeclineInvitation(context.Background(), "inv-1", "Mallory")
 		if !errors.Is(err, domain.ErrUnauthorized) {
@@ -391,7 +309,7 @@ func TestGroupService_DeclineInvitation(t *testing.T) {
 	})
 
 	t.Run("invitation not found returns ErrInvitationNotFound", func(t *testing.T) {
-		service := NewGroupService(&mocks.MockGroupRepo{}, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{}, &mocks.MockInvitationRepo{}, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
+		service := NewGroupService(&mocks.MockGroupRepo{}, &mocks.MockExpenseRepo{}, &mocks.MockInvitationRepo{}, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
 
 		err := service.DeclineInvitation(context.Background(), "missing", "Bob")
 		if !errors.Is(err, domain.ErrInvitationNotFound) {
@@ -414,7 +332,7 @@ func TestGroupService_GetMyInvitations(t *testing.T) {
 				return expected, nil
 			},
 		}
-		service := NewGroupService(&mocks.MockGroupRepo{}, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{}, invRepo, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
+		service := NewGroupService(&mocks.MockGroupRepo{}, &mocks.MockExpenseRepo{}, invRepo, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
 
 		got, err := service.GetMyInvitations(context.Background(), "Bob")
 		if err != nil {
@@ -426,7 +344,7 @@ func TestGroupService_GetMyInvitations(t *testing.T) {
 	})
 
 	t.Run("returns empty slice when no invitations", func(t *testing.T) {
-		service := NewGroupService(&mocks.MockGroupRepo{}, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{}, &mocks.MockInvitationRepo{}, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
+		service := NewGroupService(&mocks.MockGroupRepo{}, &mocks.MockExpenseRepo{}, &mocks.MockInvitationRepo{}, &mocks.MockUserRepo{}, &mocks.MockTransactor{})
 
 		got, err := service.GetMyInvitations(context.Background(), "Alice")
 		if err != nil {

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
 	"ardoise/apps/backend/internal/core/application"
 	"ardoise/apps/backend/internal/core/domain"
@@ -86,27 +85,6 @@ func (h *APIHandler) ListGroups(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(groups)
-}
-
-// GET /groups/{id}/activity?limit=N&cursor=RFC3339
-func (h *APIHandler) GetGroupActivity(w http.ResponseWriter, r *http.Request) {
-	page := parsePage(r)
-	logs, err := h.expenseService.GetGroupActivity(r.Context(), r.PathValue("id"), page)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	var nextCursor string
-	if page.Limit > 0 && len(logs) == page.Limit {
-		nextCursor = logs[len(logs)-1].CreatedAt.UTC().Format(time.RFC3339Nano)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"data":        logs,
-		"next_cursor": nextCursor,
-	})
 }
 
 // PUT /groups/{id}

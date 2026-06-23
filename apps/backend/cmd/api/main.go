@@ -92,20 +92,15 @@ func run() error {
 		return fmt.Errorf("migrations failed: %w", err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	postgres.StartPartitionManager(ctx, rawDB, 12)
-
 	db := postgres.NewDB(rawDB)
-	auditRepo := postgres.NewAuditRepository(rawDB)
 	userRepo := postgres.NewUserRepository(rawDB)
 	groupRepo := postgres.NewGroupRepository(rawDB)
 	expenseRepo := postgres.NewExpenseRepository(rawDB)
 	invitationRepo := postgres.NewInvitationRepository(rawDB)
 
 	userService := application.NewUserService(userRepo, []byte(cfg.jwtSecret))
-	groupService := application.NewGroupService(groupRepo, expenseRepo, auditRepo, invitationRepo, userRepo, db)
-	expenseService := application.NewExpenseService(expenseRepo, groupRepo, auditRepo, db)
+	groupService := application.NewGroupService(groupRepo, expenseRepo, invitationRepo, userRepo, db)
+	expenseService := application.NewExpenseService(expenseRepo, groupRepo, db)
 
 	h := handlers.NewAPIHandler(expenseService, userService, groupService)
 
@@ -131,7 +126,6 @@ func run() error {
 	protected.HandleFunc("DELETE /api/groups/{id}", h.DeleteGroup)
 	protected.HandleFunc("POST /api/groups/{id}/members", h.AddGroupMember)
 	protected.HandleFunc("DELETE /api/groups/{id}/members/{user_id}", h.RemoveGroupMember)
-	protected.HandleFunc("GET /api/groups/{id}/activity", h.GetGroupActivity)
 
 	protected.HandleFunc("GET /api/invitations", h.ListMyInvitations)
 	protected.HandleFunc("POST /api/invitations/{id}/accept", h.AcceptInvitation)

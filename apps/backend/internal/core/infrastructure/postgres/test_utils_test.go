@@ -30,7 +30,6 @@ func setupTestDB(t *testing.T) *sql.DB {
 		"splits",
 		"expenses",
 		"group_members",
-		"audit_logs",
 		"groups",
 		"users",
 	} {

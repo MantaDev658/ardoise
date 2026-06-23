@@ -12,7 +12,6 @@ import (
 type GroupService struct {
 	groupRepo      domain.GroupRepository
 	expenseRepo    domain.ExpenseRepository
-	auditRepo      domain.AuditRepository
 	invitationRepo domain.InvitationRepository
 	userRepo       domain.UserRepository
 	transactor     domain.Transactor
@@ -21,7 +20,6 @@ type GroupService struct {
 func NewGroupService(
 	groupRepo domain.GroupRepository,
 	expenseRepo domain.ExpenseRepository,
-	auditRepo domain.AuditRepository,
 	invitationRepo domain.InvitationRepository,
 	userRepo domain.UserRepository,
 	tx domain.Transactor,
@@ -29,7 +27,6 @@ func NewGroupService(
 	return &GroupService{
 		groupRepo:      groupRepo,
 		expenseRepo:    expenseRepo,
-		auditRepo:      auditRepo,
 		invitationRepo: invitationRepo,
 		userRepo:       userRepo,
 		transactor:     tx,
@@ -59,13 +56,7 @@ func (s *GroupService) CreateGroup(ctx context.Context, cmd CreateGroupCommand) 
 		if saveErr := s.groupRepo.Save(txCtx, group); saveErr != nil {
 			return fmt.Errorf("failed to save group: %w", saveErr)
 		}
-		return s.auditRepo.Save(txCtx, domain.AuditLog{
-			ID:      uuid.NewString(),
-			GroupID: string(group.ID),
-			UserID:  cmd.CreatorID,
-			Action:  domain.AuditActionCreatedGroup,
-			Details: "Created group: " + group.Name,
-		})
+		return nil
 	})
 	if err != nil {
 		return "", err
@@ -133,13 +124,7 @@ func (s *GroupService) AcceptInvitation(ctx context.Context, invitationID, actor
 		if err := s.invitationRepo.Delete(txCtx, invitationID); err != nil {
 			return fmt.Errorf("failed to delete invitation: %w", err)
 		}
-		return s.auditRepo.Save(txCtx, domain.AuditLog{
-			ID:       uuid.NewString(),
-			GroupID:  string(inv.GroupID),
-			UserID:   actorID,
-			Action:   domain.AuditActionAcceptedInvite,
-			TargetID: string(inv.GroupID),
-		})
+		return nil
 	})
 }
 
@@ -169,13 +154,7 @@ func (s *GroupService) UpdateGroup(ctx context.Context, groupID string, name str
 		if err := s.groupRepo.UpdateName(txCtx, domain.GroupID(groupID), name); err != nil {
 			return fmt.Errorf("failed to update group name: %w", err)
 		}
-		return s.auditRepo.Save(txCtx, domain.AuditLog{
-			ID:      uuid.NewString(),
-			GroupID: groupID,
-			UserID:  actorID,
-			Action:  domain.AuditActionRenamedGroup,
-			Details: "Renamed to " + name,
-		})
+		return nil
 	})
 }
 
@@ -184,13 +163,7 @@ func (s *GroupService) DeleteGroup(ctx context.Context, groupID string, userID s
 		if err := s.groupRepo.Delete(txCtx, domain.GroupID(groupID)); err != nil {
 			return fmt.Errorf("failed to delete group: %w", err)
 		}
-		return s.auditRepo.Save(txCtx, domain.AuditLog{
-			ID:       uuid.NewString(),
-			GroupID:  groupID,
-			UserID:   userID,
-			Action:   domain.AuditActionDeletedGroup,
-			TargetID: groupID,
-		})
+		return nil
 	})
 }
 
@@ -221,12 +194,6 @@ func (s *GroupService) RemoveMember(ctx context.Context, groupID string, userID 
 		if err := s.groupRepo.RemoveMember(txCtx, gID, uID); err != nil {
 			return fmt.Errorf("failed to remove group member: %w", err)
 		}
-		return s.auditRepo.Save(txCtx, domain.AuditLog{
-			ID:       uuid.NewString(),
-			GroupID:  groupID,
-			UserID:   actorID,
-			Action:   domain.AuditActionRemovedMember,
-			TargetID: string(uID),
-		})
+		return nil
 	})
 }

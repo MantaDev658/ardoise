@@ -97,7 +97,7 @@ func (s *UserService) ListFriends(ctx context.Context, userID string) ([]domain.
 	return s.repo.ListCoMembers(ctx, domain.UserID(userID))
 }
 
-// DeleteUser soft-deletes the account, preserving audit history.
+// DeleteUser soft-deletes the account, preserving its expense history.
 func (s *UserService) DeleteUser(ctx context.Context, id string) error {
 	return s.repo.SoftDelete(ctx, domain.UserID(id))
 }

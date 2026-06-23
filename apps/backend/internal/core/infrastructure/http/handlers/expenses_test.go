@@ -18,7 +18,6 @@ import (
 )
 
 func TestAPIHandler_GetBalances(t *testing.T) {
-	aRepo := &mocks.MockAuditRepo{}
 	eRepo := &mocks.MockExpenseRepo{ListForUserFunc: func(ctx context.Context, userID domain.UserID, page domain.Page) ([]*domain.Expense, error) {
 		total, _ := money.New(3000)
 		split, _ := money.New(1500)
@@ -39,7 +38,7 @@ func TestAPIHandler_GetBalances(t *testing.T) {
 			return &domain.User{ID: "Alice", IsActive: true, PasswordHash: string(hash)}, nil
 		},
 	}
-	es, us, gs := newTestServices(eRepo, uRepo, &mocks.MockGroupRepo{}, aRepo)
+	es, us, gs := newTestServices(eRepo, uRepo, &mocks.MockGroupRepo{})
 	handler := NewAPIHandler(es, us, gs)
 
 	req, err := http.NewRequest("GET", "/balances", nil)
@@ -67,7 +66,7 @@ func TestAPIHandler_ExpensesGroupFiltering(t *testing.T) {
 		GetByIDFunc: func(ctx context.Context, id domain.UserID) (*domain.User, error) {
 			return &domain.User{ID: id, IsActive: true}, nil
 		},
-	}, &mocks.MockGroupRepo{}, &mocks.MockAuditRepo{})
+	}, &mocks.MockGroupRepo{})
 	handler := NewAPIHandler(es, us, gs)
 
 	t.Run("GET /balances filters by group_id", func(t *testing.T) {
@@ -84,7 +83,6 @@ func TestAPIHandler_ExpensesGroupFiltering(t *testing.T) {
 }
 
 func TestAPIHandler_Expenses(t *testing.T) {
-	aRepo := &mocks.MockAuditRepo{}
 	eRepo := &mocks.MockExpenseRepo{
 		ListForUserFunc: func(ctx context.Context, userID domain.UserID, page domain.Page) ([]*domain.Expense, error) {
 			total, _ := money.New(3000)
@@ -120,7 +118,7 @@ func TestAPIHandler_Expenses(t *testing.T) {
 			return &domain.User{ID: "Alice", IsActive: true, PasswordHash: string(hash)}, nil
 		},
 	}
-	es, us, gs := newTestServices(eRepo, uRepo, &mocks.MockGroupRepo{}, aRepo)
+	es, us, gs := newTestServices(eRepo, uRepo, &mocks.MockGroupRepo{})
 	handler := NewAPIHandler(es, us, gs)
 
 	t.Run("GET /expenses returns list", func(t *testing.T) {
@@ -209,7 +207,6 @@ func TestAPIHandler_Expenses(t *testing.T) {
 }
 
 func TestAPIHandler_CreateSettlement(t *testing.T) {
-	aRepo := &mocks.MockAuditRepo{}
 	eRepo := &mocks.MockExpenseRepo{
 		SaveFunc: func(ctx context.Context, expense *domain.Expense) error { return nil },
 	}
@@ -220,7 +217,7 @@ func TestAPIHandler_CreateSettlement(t *testing.T) {
 			return &domain.User{ID: "Alice", IsActive: true, PasswordHash: string(hash)}, nil
 		},
 	}
-	es, us, gs := newTestServices(eRepo, uRepo, &mocks.MockGroupRepo{}, aRepo)
+	es, us, gs := newTestServices(eRepo, uRepo, &mocks.MockGroupRepo{})
 	handler := NewAPIHandler(es, us, gs)
 
 	t.Run("POST /settlements succeeds", func(t *testing.T) {
@@ -257,7 +254,6 @@ func TestAPIHandler_CreateSettlement(t *testing.T) {
 }
 
 func TestAPIHandler_GetFriendBalances(t *testing.T) {
-	aRepo := &mocks.MockAuditRepo{}
 	eRepo := &mocks.MockExpenseRepo{
 		GetFriendBalanceSummaryFunc: func(ctx context.Context, userID domain.UserID) ([]domain.FriendBalance, error) {
 			return []domain.FriendBalance{
@@ -272,7 +268,7 @@ func TestAPIHandler_GetFriendBalances(t *testing.T) {
 			return &domain.User{ID: "Alice", IsActive: true, PasswordHash: string(hash)}, nil
 		},
 	}
-	es, us, gs := newTestServices(eRepo, uRepo, &mocks.MockGroupRepo{}, aRepo)
+	es, us, gs := newTestServices(eRepo, uRepo, &mocks.MockGroupRepo{})
 	handler := NewAPIHandler(es, us, gs)
 
 	t.Run("GET /friends/{user_id}/balances succeeds for auth user", func(t *testing.T) {

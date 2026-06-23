@@ -5,10 +5,10 @@ import (
 	"ardoise/apps/backend/internal/core/mocks"
 )
 
-func newTestServices(eRepo *mocks.MockExpenseRepo, uRepo *mocks.MockUserRepo, gRepo *mocks.MockGroupRepo, aRepo *mocks.MockAuditRepo) (*application.ExpenseService, *application.UserService, *application.GroupService) {
+func newTestServices(eRepo *mocks.MockExpenseRepo, uRepo *mocks.MockUserRepo, gRepo *mocks.MockGroupRepo) (*application.ExpenseService, *application.UserService, *application.GroupService) {
 	tx := &mocks.MockTransactor{}
-	es := application.NewExpenseService(eRepo, gRepo, aRepo, tx)
+	es := application.NewExpenseService(eRepo, gRepo, tx)
 	us := application.NewUserService(uRepo, []byte("test-secret"))
-	gs := application.NewGroupService(gRepo, eRepo, aRepo, &mocks.MockInvitationRepo{}, uRepo, tx)
+	gs := application.NewGroupService(gRepo, eRepo, &mocks.MockInvitationRepo{}, uRepo, tx)
 	return es, us, gs
 }

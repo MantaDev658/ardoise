@@ -27,35 +27,6 @@ type FriendBalance struct {
 	NetCents int64
 }
 
-// AuditAction is the event type recorded in an audit log entry.
-type AuditAction string
-
-const (
-	AuditActionCreatedExpense AuditAction = "CREATED_EXPENSE"
-	AuditActionUpdatedExpense AuditAction = "UPDATED_EXPENSE"
-	AuditActionDeletedExpense AuditAction = "DELETED_EXPENSE"
-	AuditActionSettledDebt    AuditAction = "SETTLED_DEBT"
-	AuditActionCreatedGroup   AuditAction = "CREATED_GROUP"
-	AuditActionAddedMember    AuditAction = "ADDED_MEMBER"
-	AuditActionRenamedGroup   AuditAction = "RENAMED_GROUP"
-	AuditActionDeletedGroup   AuditAction = "DELETED_GROUP"
-	AuditActionRemovedMember  AuditAction = "REMOVED_GROUP_MEMBER"
-	AuditActionInvitedMember  AuditAction = "INVITED_MEMBER"
-	AuditActionAcceptedInvite AuditAction = "ACCEPTED_INVITE"
-	AuditActionDeclinedInvite AuditAction = "DECLINED_INVITE"
-)
-
-// AuditLog is an immutable record of a mutation within a group.
-type AuditLog struct {
-	ID        string      `json:"id"`
-	GroupID   string      `json:"group_id"`
-	UserID    string      `json:"user_id"`
-	Action    AuditAction `json:"action"`
-	TargetID  string      `json:"target_id,omitempty"`
-	Details   string      `json:"details,omitempty"`
-	CreatedAt time.Time   `json:"created_at"`
-}
-
 // User is a registered account.
 type User struct {
 	ID           UserID
@@ -74,11 +45,6 @@ type Invitation struct {
 	InviterID UserID
 	InviteeID UserID
 	CreatedAt time.Time
-}
-
-type AuditRepository interface {
-	Save(ctx context.Context, log AuditLog) error
-	ListByGroup(ctx context.Context, groupID GroupID, page Page) ([]AuditLog, error)
 }
 
 type UserRepository interface {

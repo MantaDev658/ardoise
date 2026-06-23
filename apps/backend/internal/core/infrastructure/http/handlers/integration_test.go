@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"bytes"
-	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -37,13 +36,8 @@ func setupIntegrationServer(t *testing.T) *httptest.Server {
 		t.Fatalf("run migrations: %v", err)
 	}
 
-	partCtx, partCancel := context.WithCancel(context.Background())
-	t.Cleanup(partCancel)
-	postgres.StartPartitionManager(partCtx, rawDB, 12)
-
 	for _, stmt := range []string{
 		"DELETE FROM splits",
-		"DELETE FROM audit_logs",
 		"DELETE FROM expenses",
 		"DELETE FROM group_invitations",
 		"DELETE FROM group_members",
@@ -60,12 +54,11 @@ func setupIntegrationServer(t *testing.T) *httptest.Server {
 	userRepo := postgres.NewUserRepository(rawDB)
 	groupRepo := postgres.NewGroupRepository(rawDB)
 	expenseRepo := postgres.NewExpenseRepository(rawDB)
-	auditRepo := postgres.NewAuditRepository(rawDB)
 	invitationRepo := postgres.NewInvitationRepository(rawDB)
 
 	userSvc := application.NewUserService(userRepo, secret)
-	groupSvc := application.NewGroupService(groupRepo, expenseRepo, auditRepo, invitationRepo, userRepo, db)
-	expenseSvc := application.NewExpenseService(expenseRepo, groupRepo, auditRepo, db)
+	groupSvc := application.NewGroupService(groupRepo, expenseRepo, invitationRepo, userRepo, db)
+	expenseSvc := application.NewExpenseService(expenseRepo, groupRepo, db)
 
 	h := NewAPIHandler(expenseSvc, userSvc, groupSvc)
 	auth := hmacauth.New(secret)

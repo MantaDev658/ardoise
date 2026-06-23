@@ -16,25 +16,6 @@ func (m *MockTransactor) RunInTx(ctx context.Context, fn func(context.Context) e
 	return fn(ctx) // default: execute fn directly, no real transaction
 }
 
-type MockAuditRepo struct {
-	SaveFunc        func(ctx context.Context, log domain.AuditLog) error
-	ListByGroupFunc func(ctx context.Context, groupID domain.GroupID, page domain.Page) ([]domain.AuditLog, error)
-}
-
-func (m *MockAuditRepo) Save(ctx context.Context, log domain.AuditLog) error {
-	if m.SaveFunc != nil {
-		return m.SaveFunc(ctx, log)
-	}
-	return nil
-}
-
-func (m *MockAuditRepo) ListByGroup(ctx context.Context, groupID domain.GroupID, page domain.Page) ([]domain.AuditLog, error) {
-	if m.ListByGroupFunc != nil {
-		return m.ListByGroupFunc(ctx, groupID, page)
-	}
-	return nil, nil
-}
-
 type MockExpenseRepo struct {
 	SaveFunc                    func(ctx context.Context, expense *domain.Expense) error
 	GetByIDFunc                 func(ctx context.Context, id domain.ExpenseID) (*domain.Expense, error)

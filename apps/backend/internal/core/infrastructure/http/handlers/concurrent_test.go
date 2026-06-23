@@ -24,7 +24,6 @@ func makeConcurrentTestServer(t *testing.T) (server *httptest.Server, bearerToke
 		&mocks.MockExpenseRepo{},
 		&mocks.MockUserRepo{},
 		&mocks.MockGroupRepo{},
-		&mocks.MockAuditRepo{},
 	)
 	h := NewAPIHandler(es, us, gs)
 

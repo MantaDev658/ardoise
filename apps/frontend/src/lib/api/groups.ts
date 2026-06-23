@@ -1,5 +1,5 @@
 import { apiFetch } from './client';
-import type { AuditLog, CreateGroupResponse, Group, Paginated } from './types';
+import type { CreateGroupResponse, Group } from './types';
 
 export function listGroups() {
 	return apiFetch<Group[]>('/groups');
@@ -26,11 +26,4 @@ export function addGroupMember(groupID: string, userID: string) {
 
 export function removeGroupMember(groupID: string, userID: string) {
 	return apiFetch<void>(`/groups/${groupID}/members/${userID}`, { method: 'DELETE' });
-}
-
-export function getGroupActivity(groupID: string, cursor?: string, limit = 20) {
-	const params = new URLSearchParams();
-	if (cursor) params.set('cursor', cursor);
-	params.set('limit', String(limit));
-	return apiFetch<Paginated<AuditLog>>(`/groups/${groupID}/activity?${params}`);
 }

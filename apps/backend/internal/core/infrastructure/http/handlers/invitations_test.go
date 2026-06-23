@@ -23,8 +23,8 @@ func newHandlerWithInvitationRepo(invRepo *mocks.MockInvitationRepo) *APIHandler
 			return &domain.Group{ID: id, Name: "Trip", Members: []domain.UserID{"Alice"}}, nil
 		},
 	}
-	gs := application.NewGroupService(gRepo, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{}, invRepo, &mocks.MockUserRepo{}, tx)
-	es := application.NewExpenseService(&mocks.MockExpenseRepo{}, gRepo, &mocks.MockAuditRepo{}, tx)
+	gs := application.NewGroupService(gRepo, &mocks.MockExpenseRepo{}, invRepo, &mocks.MockUserRepo{}, tx)
+	es := application.NewExpenseService(&mocks.MockExpenseRepo{}, gRepo, tx)
 	us := application.NewUserService(&mocks.MockUserRepo{}, []byte("test-secret"))
 	return NewAPIHandler(es, us, gs)
 }
