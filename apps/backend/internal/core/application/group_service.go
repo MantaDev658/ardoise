@@ -81,7 +81,7 @@ func (s *GroupService) ListGroupsForUser(ctx context.Context, userID string) ([]
 // The actor must be an existing group member. Accepts happen via AcceptInvitation.
 func (s *GroupService) InviteUserToGroup(ctx context.Context, groupID, inviteeID, actorID string) error {
 	gID := domain.GroupID(groupID)
-	uID := domain.UserID(inviteeID)
+	uID := domain.UserID(domain.NormalizeUsername(inviteeID))
 
 	group, err := s.groupRepo.GetByID(ctx, gID)
 	if err != nil {
@@ -199,7 +199,7 @@ func (s *GroupService) DeleteGroup(ctx context.Context, groupID string, userID s
 // preventing a concurrent AddExpense from inserting a debt between the check and the removal.
 func (s *GroupService) RemoveMember(ctx context.Context, groupID string, userID string, actorID string) error {
 	gID := domain.GroupID(groupID)
-	uID := domain.UserID(userID)
+	uID := domain.UserID(domain.NormalizeUsername(userID))
 
 	return s.transactor.RunInTx(ctx, func(txCtx context.Context) error {
 		if err := s.groupRepo.LockGroup(txCtx, gID); err != nil {
@@ -226,7 +226,7 @@ func (s *GroupService) RemoveMember(ctx context.Context, groupID string, userID 
 			GroupID:  groupID,
 			UserID:   actorID,
 			Action:   domain.AuditActionRemovedMember,
-			TargetID: userID,
+			TargetID: string(uID),
 		})
 	})
 }

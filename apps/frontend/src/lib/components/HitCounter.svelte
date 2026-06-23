@@ -14,6 +14,6 @@
 </script>
 
 <div class="{className} bg-black p-3" style="box-shadow: var(--bevel-in)">
-	<div class="font-mono text-win-green text-2xl tracking-widest select-none">{display}</div>
+	<div class="font-mono text-win-green text-lg sm:text-2xl tracking-widest select-none">{display}</div>
 	<div class="font-system text-xs text-win-dark uppercase mt-1">{label}</div>
 </div>

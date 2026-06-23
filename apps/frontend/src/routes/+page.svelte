@@ -275,16 +275,16 @@
 						<th class="px-2 py-1 text-left font-bold">Description</th>
 						<th class="px-2 py-1 text-left font-bold">Payer</th>
 						<th class="px-2 py-1 text-right font-bold">Amount</th>
-						<th class="px-2 py-1 text-right font-bold">Date</th>
+						<th class="px-2 py-1 text-right font-bold hidden sm:table-cell">Date</th>
 					</tr>
 				</thead>
 				<tbody>
 					{#each (expenses ?? []) as exp, i}
 						<tr class={i % 2 === 0 ? 'bg-win-panel' : 'bg-white'}>
-							<td class="px-2 py-0.5">{exp.description}</td>
-							<td class="px-2 py-0.5 text-win-dark">{exp.payer}</td>
-							<td class="px-2 py-0.5 text-right font-mono">{formatCents(exp.total_cents)}</td>
-							<td class="px-2 py-0.5 text-right text-win-dark">{formatDate(exp.created_at)}</td>
+							<td class="px-2 py-0.5 max-w-[40vw] sm:max-w-none truncate">{exp.description}</td>
+							<td class="px-2 py-0.5 text-win-dark max-w-[24vw] sm:max-w-none truncate">{exp.payer}</td>
+							<td class="px-2 py-0.5 text-right font-mono whitespace-nowrap">{formatCents(exp.total_cents)}</td>
+							<td class="px-2 py-0.5 text-right text-win-dark hidden sm:table-cell">{formatDate(exp.created_at)}</td>
 						</tr>
 					{/each}
 				</tbody>

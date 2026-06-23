@@ -1,0 +1,3 @@
+-- Irreversible: the original mixed-case usernames are not recoverable once
+-- folded to lower case. This down migration is intentionally a no-op so the
+-- migration version can still be stepped down without error.

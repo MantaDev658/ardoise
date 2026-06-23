@@ -24,5 +24,7 @@ func (a *Authenticator) Authenticate(_ context.Context, token string) (domain.Us
 	if err != nil {
 		return "", domain.ErrUnauthorized
 	}
-	return domain.UserID(sub), nil
+	// Normalize so already-issued tokens carrying a mixed-case subject resolve to
+	// the same canonical (lower-case) identity used everywhere else.
+	return domain.UserID(domain.NormalizeUsername(sub)), nil
 }

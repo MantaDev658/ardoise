@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"strings"
 	"time"
 
 	"ardoise/libs/shared/money"
@@ -9,6 +10,13 @@ import (
 type ExpenseID string
 
 type UserID string
+
+// NormalizeUsername canonicalizes a username for storage and lookup. Usernames are
+// case-insensitive, so they are stored and compared in lower case. Surrounding
+// whitespace is trimmed since usernames are often entered by hand (e.g. invitations).
+func NormalizeUsername(s string) string {
+	return strings.ToLower(strings.TrimSpace(s))
+}
 
 // Split is a single participant's share of an expense.
 type Split struct {

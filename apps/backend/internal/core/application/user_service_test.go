@@ -209,3 +209,44 @@ func TestUserService_ChangePassword(t *testing.T) {
 		}
 	})
 }
+
+func TestUserService_NormalizesUsername(t *testing.T) {
+	secret := []byte("test-secret")
+
+	t.Run("RegisterUser stores the username in lower case", func(t *testing.T) {
+		var saved domain.UserID
+		repo := &mocks.MockUserRepo{
+			SaveFunc: func(ctx context.Context, user domain.User) error {
+				saved = user.ID
+				return nil
+			},
+		}
+		service := NewUserService(repo, secret)
+
+		if err := service.RegisterUser(context.Background(), "Alice", "Alice", "password"); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if saved != "alice" {
+			t.Errorf("expected stored id 'alice', got %q", saved)
+		}
+	})
+
+	t.Run("LoginUser looks up the normalized username", func(t *testing.T) {
+		var looked domain.UserID
+		hash, _ := bcrypt.GenerateFromPassword([]byte("pw"), bcrypt.DefaultCost)
+		repo := &mocks.MockUserRepo{
+			GetByIDFunc: func(ctx context.Context, id domain.UserID) (*domain.User, error) {
+				looked = id
+				return &domain.User{ID: id, IsActive: true, PasswordHash: string(hash)}, nil
+			},
+		}
+		service := NewUserService(repo, secret)
+
+		if _, err := service.LoginUser(context.Background(), "ALICE", "pw"); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if looked != "alice" {
+			t.Errorf("expected lookup by 'alice', got %q", looked)
+		}
+	})
+}

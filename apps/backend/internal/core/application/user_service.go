@@ -29,7 +29,7 @@ func (s *UserService) RegisterUser(ctx context.Context, id, displayName, plainPa
 	}
 
 	user := domain.User{
-		ID:           domain.UserID(id),
+		ID:           domain.UserID(domain.NormalizeUsername(id)),
 		DisplayName:  displayName,
 		PasswordHash: string(hash),
 	}
@@ -37,7 +37,7 @@ func (s *UserService) RegisterUser(ctx context.Context, id, displayName, plainPa
 }
 
 func (s *UserService) LoginUser(ctx context.Context, id, plainPassword string) (string, error) {
-	user, err := s.repo.GetByID(ctx, domain.UserID(id))
+	user, err := s.repo.GetByID(ctx, domain.UserID(domain.NormalizeUsername(id)))
 	if err != nil || !user.IsActive {
 		return "", domain.ErrUserNotFound
 	}

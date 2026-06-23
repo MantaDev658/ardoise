@@ -22,8 +22,11 @@ func TestAuthMiddleware(t *testing.T) {
 		if !ok || userID == "" {
 			t.Errorf("expected UserID in context, got none")
 		}
-		if userID != "Alice" {
-			t.Errorf("expected UserID 'Alice', got %s", userID)
+		// The authenticator normalizes the JWT subject to lower case, so an
+		// already-issued mixed-case token ("Alice") maps to the canonical
+		// identity ("alice"). This is what keeps the change non-breaking.
+		if userID != "alice" {
+			t.Errorf("expected normalized UserID 'alice', got %s", userID)
 		}
 		w.WriteHeader(http.StatusOK)
 	})

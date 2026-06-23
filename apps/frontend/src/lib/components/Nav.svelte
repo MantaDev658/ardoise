@@ -19,7 +19,7 @@
 	}
 </script>
 
-<nav class="bg-win95 flex items-center gap-2 px-3 py-1" style="box-shadow: var(--bevel-out)">
+<nav class="bg-win95 flex flex-wrap items-center gap-x-2 gap-y-1 px-2 sm:px-3 py-1" style="box-shadow: var(--bevel-out)">
 	<span class="font-heading font-bold text-win-navy text-sm mr-3 shrink-0">Ardoise</span>
 
 	{#each links as link}

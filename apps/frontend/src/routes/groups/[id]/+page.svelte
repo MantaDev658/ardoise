@@ -282,7 +282,7 @@
 {:else}
 	<Window title={group.Name}>
 		<!-- Tab bar -->
-		<div class="flex gap-0 -mx-4 -mt-4 mb-4 overflow-x-auto">
+		<div class="flex gap-0 -mx-2 -mt-2 sm:-mx-4 sm:-mt-4 mb-4 overflow-x-auto">
 			{#each (['members', 'balances', 'expenses', 'activity'] as Tab[]) as t}
 				<button
 					class="px-4 py-1.5 text-xs font-bold uppercase font-system shrink-0
@@ -359,17 +359,17 @@
 								<th class="px-2 py-1 text-left font-bold">Description</th>
 								<th class="px-2 py-1 text-left font-bold">Payer</th>
 								<th class="px-2 py-1 text-right font-bold">Amount</th>
-								<th class="px-2 py-1 text-right font-bold">Date</th>
+								<th class="px-2 py-1 text-right font-bold hidden sm:table-cell">Date</th>
 								<th class="px-2 py-1"></th>
 							</tr>
 						</thead>
 						<tbody>
 							{#each expenses as exp, i}
 								<tr class={i % 2 === 0 ? 'bg-win-panel' : 'bg-white'}>
-									<td class="px-2 py-0.5">{exp.description}</td>
-									<td class="px-2 py-0.5 text-win-dark">{exp.payer}</td>
-									<td class="px-2 py-0.5 text-right font-mono">{formatCents(exp.total_cents)}</td>
-									<td class="px-2 py-0.5 text-right text-win-dark">{formatDate(exp.created_at)}</td>
+									<td class="px-2 py-0.5 max-w-[40vw] sm:max-w-none truncate">{exp.description}</td>
+									<td class="px-2 py-0.5 text-win-dark max-w-[24vw] sm:max-w-none truncate">{exp.payer}</td>
+									<td class="px-2 py-0.5 text-right font-mono whitespace-nowrap">{formatCents(exp.total_cents)}</td>
+									<td class="px-2 py-0.5 text-right text-win-dark hidden sm:table-cell">{formatDate(exp.created_at)}</td>
 									<td class="px-2 py-0.5 text-right">
 										<Button variant="danger" onclick={() => handleDeleteExpense(exp.id)}>DEL</Button>
 									</td>
@@ -417,8 +417,8 @@
 						<tbody>
 							{#each Object.entries(balances.net_balances) as [uid, cents], i}
 								<tr class={i % 2 === 0 ? 'bg-win-panel' : 'bg-white'}>
-									<td class="px-2 py-1">{userByID[uid]?.DisplayName ?? uid}</td>
-									<td class="px-2 py-1 text-right font-mono font-bold
+									<td class="px-2 py-1 max-w-0 w-3/5 truncate">{userByID[uid]?.DisplayName ?? uid}</td>
+									<td class="px-2 py-1 text-right font-mono font-bold whitespace-nowrap
 										{cents > 0 ? 'text-green-700' : cents < 0 ? 'text-red-700' : 'text-win-dark'}">
 										{cents > 0 ? '+' : ''}{formatCents(cents)}
 									</td>
@@ -437,15 +437,15 @@
 						{#each balances.suggested_settlements as s, i}
 							<div class="flex items-center justify-between px-2 py-1
 								{i % 2 === 0 ? 'bg-win-panel' : 'bg-white'}">
-								<span class="font-system text-sm">
+								<span class="font-system text-sm min-w-0 truncate">
 									{userByID[s.From]?.DisplayName ?? s.From}
 									→
 									{userByID[s.To]?.DisplayName ?? s.To}
-									<span class="font-mono font-bold ml-2">{formatCents(s.Amount)}</span>
+									<span class="font-mono font-bold ml-2 whitespace-nowrap">{formatCents(s.Amount)}</span>
 								</span>
 								<a
 									href="/settle?to={s.To}&amount={s.Amount}&group={groupID}"
-									class="inline-block"
+									class="inline-block shrink-0 ml-2"
 								>
 									<Button variant="success">SETTLE</Button>
 								</a>

@@ -25,7 +25,7 @@
 		<span class="text-white font-bold text-sm font-system flex-1 truncate">{title}</span>
 	</div>
 
-	<div class="bg-white m-0.5 p-4" style="box-shadow: var(--bevel-in)">
+	<div class="bg-white m-0.5 p-2 sm:p-4" style="box-shadow: var(--bevel-in)">
 		{@render children()}
 	</div>
 </div>

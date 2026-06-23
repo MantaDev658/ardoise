@@ -30,7 +30,7 @@
 	/>
 	<Nav />
 {/if}
-<main class={authenticated ? 'bg-90s-tile min-h-screen p-4' : ''}>
+<main class={authenticated ? 'bg-90s-tile min-h-screen p-2 sm:p-4' : ''}>
 	{@render children()}
 </main>
 

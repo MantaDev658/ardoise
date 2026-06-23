@@ -117,11 +117,12 @@ func TestGroupService_InviteUser_Errors(t *testing.T) {
 	t.Run("invitee already a member returns ErrUserAlreadyInGroup", func(t *testing.T) {
 		gRepo := &mocks.MockGroupRepo{
 			GetByIDFunc: func(ctx context.Context, id domain.GroupID) (*domain.Group, error) {
-				return &domain.Group{ID: id, Name: "Trip", Members: []domain.UserID{"Alice", "Bob"}}, nil
+				return &domain.Group{ID: id, Name: "Trip", Members: []domain.UserID{"alice", "bob"}}, nil
 			},
 		}
 		service := newTestGroupService(gRepo, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{})
-		err := service.InviteUserToGroup(context.Background(), "g1", "Bob", "Alice")
+		// "Bob" is normalized to "bob", which already belongs to the group.
+		err := service.InviteUserToGroup(context.Background(), "g1", "Bob", "alice")
 		if !errors.Is(err, domain.ErrUserAlreadyInGroup) {
 			t.Errorf("expected ErrUserAlreadyInGroup, got %v", err)
 		}
@@ -133,7 +134,7 @@ func TestGroupService_InviteUser_SavesInvitation(t *testing.T) {
 	invRepo := &mocks.MockInvitationRepo{
 		SaveFunc: func(ctx context.Context, inv domain.Invitation) error {
 			invSaved = true
-			if inv.InviterID != "Alice" || inv.InviteeID != "Bob" {
+			if inv.InviterID != "alice" || inv.InviteeID != "bob" {
 				t.Errorf("unexpected invitation: inviter=%s invitee=%s", inv.InviterID, inv.InviteeID)
 			}
 			return nil
@@ -141,7 +142,7 @@ func TestGroupService_InviteUser_SavesInvitation(t *testing.T) {
 	}
 	gRepo := &mocks.MockGroupRepo{
 		GetByIDFunc: func(ctx context.Context, id domain.GroupID) (*domain.Group, error) {
-			return &domain.Group{ID: id, Name: "Trip", Members: []domain.UserID{"Alice"}}, nil
+			return &domain.Group{ID: id, Name: "Trip", Members: []domain.UserID{"alice"}}, nil
 		},
 	}
 	uRepo := &mocks.MockUserRepo{
@@ -151,7 +152,7 @@ func TestGroupService_InviteUser_SavesInvitation(t *testing.T) {
 	}
 	service := NewGroupService(gRepo, &mocks.MockExpenseRepo{}, &mocks.MockAuditRepo{}, invRepo, uRepo, &mocks.MockTransactor{})
 
-	if err := service.InviteUserToGroup(context.Background(), "g1", "Bob", "Alice"); err != nil {
+	if err := service.InviteUserToGroup(context.Background(), "g1", "Bob", "alice"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !invSaved {
@@ -208,8 +209,8 @@ func TestGroupService_RemoveMember_BalanceValidation(t *testing.T) {
 				total, _ := money.New(3000)
 				split, _ := money.New(1500)
 				exp, _ := domain.NewExpense(
-					"exp-1", nil, "Dinner", total, "UserA",
-					[]domain.Split{{User: "UserA", Amount: split}, {User: "UserB", Amount: split}},
+					"exp-1", nil, "Dinner", total, "usera",
+					[]domain.Split{{User: "usera", Amount: split}, {User: "userb", Amount: split}},
 				)
 				return []*domain.Expense{exp}, nil
 			},
@@ -241,10 +242,10 @@ func TestGroupService_RemoveMember_BalanceValidation(t *testing.T) {
 			ListByGroupFunc: func(_ context.Context, _ domain.GroupID, _ domain.Page) ([]*domain.Expense, error) {
 				total, _ := money.New(5000)
 				split, _ := money.New(2500)
-				exp1, _ := domain.NewExpense("exp-1", nil, "Lunch", total, "Alice",
-					[]domain.Split{{User: "Alice", Amount: split}, {User: "Bob", Amount: split}})
-				exp2, _ := domain.NewExpense("exp-2", nil, "Dinner", total, "Charlie",
-					[]domain.Split{{User: "Charlie", Amount: split}, {User: "Alice", Amount: split}})
+				exp1, _ := domain.NewExpense("exp-1", nil, "Lunch", total, "alice",
+					[]domain.Split{{User: "alice", Amount: split}, {User: "bob", Amount: split}})
+				exp2, _ := domain.NewExpense("exp-2", nil, "Dinner", total, "charlie",
+					[]domain.Split{{User: "charlie", Amount: split}, {User: "alice", Amount: split}})
 				return []*domain.Expense{exp1, exp2}, nil
 			},
 		}

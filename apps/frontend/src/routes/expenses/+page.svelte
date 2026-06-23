@@ -451,7 +451,7 @@
 						<th class="px-2 py-1 text-left font-bold">Description</th>
 						<th class="px-2 py-1 text-left font-bold">Payer</th>
 						<th class="px-2 py-1 text-right font-bold">Amount</th>
-						<th class="px-2 py-1 text-right font-bold">Date</th>
+						<th class="px-2 py-1 text-right font-bold hidden sm:table-cell">Date</th>
 						<th class="px-2 py-1"></th>
 					</tr>
 				</thead>
@@ -461,7 +461,7 @@
 							<tr class={i % 2 === 0 ? 'bg-win-panel' : 'bg-white'}>
 								<td colspan="5" class="px-2 py-2">
 									<form class="flex flex-col gap-2 font-system text-xs" onsubmit={handleEdit}>
-										<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+										<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
 											<div class="flex flex-col gap-1 col-span-2">
 												<label class="font-bold" for="edit-desc">Description</label>
 												<Input id="edit-desc" bind:value={editDesc} placeholder="Dinner, Hotel, etc." />
@@ -541,10 +541,10 @@
 							</tr>
 						{:else}
 							<tr class={i % 2 === 0 ? 'bg-win-panel' : 'bg-white'}>
-								<td class="px-2 py-0.5">{exp.description}</td>
-								<td class="px-2 py-0.5 text-win-dark">{exp.payer}</td>
-								<td class="px-2 py-0.5 text-right font-mono">{formatCents(exp.total_cents)}</td>
-								<td class="px-2 py-0.5 text-right text-win-dark">{formatDate(exp.created_at)}</td>
+								<td class="px-2 py-0.5 max-w-[40vw] sm:max-w-none truncate">{exp.description}</td>
+								<td class="px-2 py-0.5 text-win-dark max-w-[24vw] sm:max-w-none truncate">{exp.payer}</td>
+								<td class="px-2 py-0.5 text-right font-mono whitespace-nowrap">{formatCents(exp.total_cents)}</td>
+								<td class="px-2 py-0.5 text-right text-win-dark hidden sm:table-cell">{formatDate(exp.created_at)}</td>
 								<td class="px-2 py-0.5 text-right">
 									<div class="flex gap-1 justify-end">
 										<Button onclick={() => startEdit(exp)}>EDIT</Button>

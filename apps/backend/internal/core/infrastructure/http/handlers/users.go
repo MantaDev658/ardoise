@@ -106,7 +106,7 @@ func (h *APIHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 
 // PUT /users/{id}
 func (h *APIHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
-	userID := r.PathValue("id")
+	userID := domain.NormalizeUsername(r.PathValue("id"))
 
 	callerID, err := getAuthUserID(r)
 	if err != nil || callerID != userID {
@@ -136,7 +136,7 @@ func (h *APIHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /users/{id}
 func (h *APIHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
-	userID := r.PathValue("id")
+	userID := domain.NormalizeUsername(r.PathValue("id"))
 
 	callerID, err := getAuthUserID(r)
 	if err != nil || callerID != userID {
@@ -153,7 +153,7 @@ func (h *APIHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 // PUT /users/{id}/password
 func (h *APIHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
-	targetID := r.PathValue("id")
+	targetID := domain.NormalizeUsername(r.PathValue("id"))
 
 	// Enforce self-only: the caller may only change their own password.
 	callerID, err := getAuthUserID(r)

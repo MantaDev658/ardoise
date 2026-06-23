@@ -39,9 +39,9 @@ func TestAPIHandler_Users(t *testing.T) {
 
 	t.Run("PUT /users/{id} updates display name", func(t *testing.T) {
 		body := []byte(`{"display_name": "Alice Updated"}`)
-		req := httptest.NewRequest("PUT", "/users/Alice", bytes.NewBuffer(body))
-		req.SetPathValue("id", "Alice")
-		ctx := context.WithValue(req.Context(), middleware.UserIDKey, "Alice")
+		req := httptest.NewRequest("PUT", "/users/alice", bytes.NewBuffer(body))
+		req.SetPathValue("id", "alice")
+		ctx := context.WithValue(req.Context(), middleware.UserIDKey, "alice")
 		req = req.WithContext(ctx)
 		rr := httptest.NewRecorder()
 
@@ -68,9 +68,9 @@ func TestAPIHandler_Users(t *testing.T) {
 	})
 
 	t.Run("DELETE /users/{id} soft deletes", func(t *testing.T) {
-		req := httptest.NewRequest("DELETE", "/users/Alice", nil)
-		req.SetPathValue("id", "Alice")
-		ctx := context.WithValue(req.Context(), middleware.UserIDKey, "Alice")
+		req := httptest.NewRequest("DELETE", "/users/alice", nil)
+		req.SetPathValue("id", "alice")
+		ctx := context.WithValue(req.Context(), middleware.UserIDKey, "alice")
 		req = req.WithContext(ctx)
 		rr := httptest.NewRecorder()
 
@@ -130,7 +130,7 @@ func TestAPIHandler_ChangePassword(t *testing.T) {
 	t.Run("returns 400 when current password is wrong", func(t *testing.T) {
 		_, us, gs := newTestServices(&mocks.MockExpenseRepo{}, makeUserRepo(), &mocks.MockGroupRepo{}, &mocks.MockAuditRepo{})
 		h := NewAPIHandler(nil, us, gs)
-		rr, req := makeRequest("Alice", "Alice", `{"current_password":"wrongpass","new_password":"newpass123"}`)
+		rr, req := makeRequest("alice", "alice", `{"current_password":"wrongpass","new_password":"newpass123"}`)
 		h.ChangePassword(rr, req)
 		if rr.Code != http.StatusBadRequest {
 			t.Errorf("expected 400, got %d", rr.Code)
@@ -140,7 +140,7 @@ func TestAPIHandler_ChangePassword(t *testing.T) {
 	t.Run("returns 400 when new password is too short", func(t *testing.T) {
 		_, us, gs := newTestServices(&mocks.MockExpenseRepo{}, makeUserRepo(), &mocks.MockGroupRepo{}, &mocks.MockAuditRepo{})
 		h := NewAPIHandler(nil, us, gs)
-		rr, req := makeRequest("Alice", "Alice", `{"current_password":"currentpass","new_password":"short"}`)
+		rr, req := makeRequest("alice", "alice", `{"current_password":"currentpass","new_password":"short"}`)
 		h.ChangePassword(rr, req)
 		if rr.Code != http.StatusBadRequest {
 			t.Errorf("expected 400, got %d", rr.Code)
@@ -150,7 +150,7 @@ func TestAPIHandler_ChangePassword(t *testing.T) {
 	t.Run("returns 400 when new password equals current", func(t *testing.T) {
 		_, us, gs := newTestServices(&mocks.MockExpenseRepo{}, makeUserRepo(), &mocks.MockGroupRepo{}, &mocks.MockAuditRepo{})
 		h := NewAPIHandler(nil, us, gs)
-		rr, req := makeRequest("Alice", "Alice", `{"current_password":"currentpass","new_password":"currentpass"}`)
+		rr, req := makeRequest("alice", "alice", `{"current_password":"currentpass","new_password":"currentpass"}`)
 		h.ChangePassword(rr, req)
 		if rr.Code != http.StatusBadRequest {
 			t.Errorf("expected 400, got %d", rr.Code)
@@ -160,7 +160,7 @@ func TestAPIHandler_ChangePassword(t *testing.T) {
 	t.Run("returns 200 on success", func(t *testing.T) {
 		_, us, gs := newTestServices(&mocks.MockExpenseRepo{}, makeUserRepo(), &mocks.MockGroupRepo{}, &mocks.MockAuditRepo{})
 		h := NewAPIHandler(nil, us, gs)
-		rr, req := makeRequest("Alice", "Alice", `{"current_password":"currentpass","new_password":"newpassword123"}`)
+		rr, req := makeRequest("alice", "alice", `{"current_password":"currentpass","new_password":"newpassword123"}`)
 		h.ChangePassword(rr, req)
 		if rr.Code != http.StatusOK {
 			t.Errorf("expected 200, got %d", rr.Code)
