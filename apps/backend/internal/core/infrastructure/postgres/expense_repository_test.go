@@ -131,6 +131,56 @@ func TestExpenseRepository_Pagination_TieBreaker(t *testing.T) {
 	}
 }
 
+// TestExpenseRepository_Pagination_MultiSplitNotTruncated guards against the bug
+// where LIMIT was applied to the expense×splits join rather than to distinct
+// expenses. With multi-split expenses that made LIMIT cut mid-expense, yielding a
+// partially-populated expense whose splits no longer summed to the total and so
+// failed reconstruction (ErrSplitsDoNotEqualTotal -> "corrupted data in db").
+func TestExpenseRepository_Pagination_MultiSplitNotTruncated(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repo := NewExpenseRepository(db)
+	ctx := context.Background()
+
+	total, _ := money.New(1000)
+	half, _ := money.New(500)
+
+	// Two expenses, each split between Alice and Bob (2 rows per expense once joined).
+	exp1, _ := domain.NewExpense(domain.ExpenseID(uuid.NewString()), nil, "First", total, "Alice",
+		[]domain.Split{{User: "Alice", Amount: half}, {User: "Bob", Amount: half}})
+	exp2, _ := domain.NewExpense(domain.ExpenseID(uuid.NewString()), nil, "Second", total, "Alice",
+		[]domain.Split{{User: "Alice", Amount: half}, {User: "Bob", Amount: half}})
+
+	if err := repo.Save(ctx, exp1); err != nil {
+		t.Fatalf("failed to save exp1: %v", err)
+	}
+	if err := repo.Save(ctx, exp2); err != nil {
+		t.Fatalf("failed to save exp2: %v", err)
+	}
+
+	// Limit must count expenses, not joined rows: Limit 1 returns 1 complete expense.
+	page1, err := repo.ListAll(ctx, domain.Page{Limit: 1})
+	if err != nil {
+		t.Fatalf("ListAll with Limit 1 failed (expense was truncated mid-split): %v", err)
+	}
+	if len(page1) != 1 {
+		t.Fatalf("expected 1 expense, got %d", len(page1))
+	}
+	if got := len(page1[0].Splits()); got != 2 {
+		t.Fatalf("expected expense to keep all 2 splits, got %d (split set was truncated)", got)
+	}
+
+	// Limit 2 returns both expenses (4 joined rows), proving the limit is per-expense.
+	page2, err := repo.ListAll(ctx, domain.Page{Limit: 2})
+	if err != nil {
+		t.Fatalf("ListAll with Limit 2 failed: %v", err)
+	}
+	if len(page2) != 2 {
+		t.Fatalf("expected 2 expenses, got %d", len(page2))
+	}
+}
+
 func TestExpenseRepository_GetByID_NotFound(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()

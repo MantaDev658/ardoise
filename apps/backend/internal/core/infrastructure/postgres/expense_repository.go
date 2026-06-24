@@ -176,21 +176,29 @@ func (r *ExpenseRepository) GetByID(ctx context.Context, id domain.ExpenseID) (*
 }
 
 func (r *ExpenseRepository) ListAll(ctx context.Context, page domain.Page) ([]*domain.Expense, error) {
-	query := `
-		SELECT e.id, e.group_id, e.description, e.total_cents, e.payer_id, e.created_at, s.user_id, s.amount_cents
-		FROM expenses e
-		JOIN splits s ON e.id = s.expense_id
-	`
+	// The LIMIT must apply to distinct expenses, not the expense×splits join, so
+	// paginate expenses in a subquery and join splits for exactly those rows.
 	var args []any
+	inner := `
+		SELECT id, group_id, description, total_cents, payer_id, created_at
+		FROM expenses
+	`
 	if !page.Cursor.IsZero() {
 		args = append(args, page.Cursor, page.CursorID)
-		query += fmt.Sprintf(" WHERE (e.created_at > $%d OR (e.created_at = $%d AND e.id > $%d))", len(args)-1, len(args)-1, len(args))
+		inner += fmt.Sprintf(" WHERE (created_at > $%d OR (created_at = $%d AND id > $%d))", len(args)-1, len(args)-1, len(args))
 	}
-	query += " ORDER BY e.created_at ASC, e.id ASC"
+	inner += " ORDER BY created_at ASC, id ASC"
 	if page.Limit > 0 {
 		args = append(args, page.Limit)
-		query += fmt.Sprintf(" LIMIT $%d", len(args))
+		inner += fmt.Sprintf(" LIMIT $%d", len(args))
 	}
+
+	const outer = `
+		SELECT e.id, e.group_id, e.description, e.total_cents, e.payer_id, e.created_at, s.user_id, s.amount_cents
+		FROM (`
+	query := outer + inner + `) e
+		JOIN splits s ON e.id = s.expense_id
+		ORDER BY e.created_at ASC, e.id ASC`
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -201,22 +209,30 @@ func (r *ExpenseRepository) ListAll(ctx context.Context, page domain.Page) ([]*d
 }
 
 func (r *ExpenseRepository) ListForUser(ctx context.Context, userID domain.UserID, page domain.Page) ([]*domain.Expense, error) {
+	// The LIMIT must apply to distinct expenses, not the expense×splits join, so
+	// paginate expenses in a subquery and join splits for exactly those rows.
 	args := []any{string(userID)}
-	query := `
-		SELECT e.id, e.group_id, e.description, e.total_cents, e.payer_id, e.created_at, s.user_id, s.amount_cents
-		FROM expenses e
-		JOIN splits s ON e.id = s.expense_id
-		WHERE (e.payer_id = $1 OR e.id IN (SELECT expense_id FROM splits WHERE user_id = $1))
+	inner := `
+		SELECT id, group_id, description, total_cents, payer_id, created_at
+		FROM expenses
+		WHERE (payer_id = $1 OR id IN (SELECT expense_id FROM splits WHERE user_id = $1))
 	`
 	if !page.Cursor.IsZero() {
 		args = append(args, page.Cursor, page.CursorID)
-		query += fmt.Sprintf(" AND (e.created_at > $%d OR (e.created_at = $%d AND e.id > $%d))", len(args)-1, len(args)-1, len(args))
+		inner += fmt.Sprintf(" AND (created_at > $%d OR (created_at = $%d AND id > $%d))", len(args)-1, len(args)-1, len(args))
 	}
-	query += " ORDER BY e.created_at ASC, e.id ASC"
+	inner += " ORDER BY created_at ASC, id ASC"
 	if page.Limit > 0 {
 		args = append(args, page.Limit)
-		query += fmt.Sprintf(" LIMIT $%d", len(args))
+		inner += fmt.Sprintf(" LIMIT $%d", len(args))
 	}
+
+	const outer = `
+		SELECT e.id, e.group_id, e.description, e.total_cents, e.payer_id, e.created_at, s.user_id, s.amount_cents
+		FROM (`
+	query := outer + inner + `) e
+		JOIN splits s ON e.id = s.expense_id
+		ORDER BY e.created_at ASC, e.id ASC`
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -227,22 +243,30 @@ func (r *ExpenseRepository) ListForUser(ctx context.Context, userID domain.UserI
 }
 
 func (r *ExpenseRepository) ListByGroup(ctx context.Context, groupID domain.GroupID, page domain.Page) ([]*domain.Expense, error) {
+	// The LIMIT must apply to distinct expenses, not the expense×splits join, so
+	// paginate expenses in a subquery and join splits for exactly those rows.
 	args := []any{string(groupID)}
-	query := `
-		SELECT e.id, e.group_id, e.description, e.total_cents, e.payer_id, e.created_at, s.user_id, s.amount_cents
-		FROM expenses e
-		JOIN splits s ON e.id = s.expense_id
-		WHERE e.group_id = $1
+	inner := `
+		SELECT id, group_id, description, total_cents, payer_id, created_at
+		FROM expenses
+		WHERE group_id = $1
 	`
 	if !page.Cursor.IsZero() {
 		args = append(args, page.Cursor, page.CursorID)
-		query += fmt.Sprintf(" AND (e.created_at > $%d OR (e.created_at = $%d AND e.id > $%d))", len(args)-1, len(args)-1, len(args))
+		inner += fmt.Sprintf(" AND (created_at > $%d OR (created_at = $%d AND id > $%d))", len(args)-1, len(args)-1, len(args))
 	}
-	query += " ORDER BY e.created_at ASC, e.id ASC"
+	inner += " ORDER BY created_at ASC, id ASC"
 	if page.Limit > 0 {
 		args = append(args, page.Limit)
-		query += fmt.Sprintf(" LIMIT $%d", len(args))
+		inner += fmt.Sprintf(" LIMIT $%d", len(args))
 	}
+
+	const outer = `
+		SELECT e.id, e.group_id, e.description, e.total_cents, e.payer_id, e.created_at, s.user_id, s.amount_cents
+		FROM (`
+	query := outer + inner + `) e
+		JOIN splits s ON e.id = s.expense_id
+		ORDER BY e.created_at ASC, e.id ASC`
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
